@@ -26,10 +26,12 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
 
+  // 1. Prevent unauthenticated users from accessing protected routes
   if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/dispatch'))) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
+  // 2. Route handling for authenticated users
   if (user) {
     // Fetch profile role
     const { data: profile } = await supabase
@@ -49,11 +51,24 @@ export async function proxy(request: NextRequest) {
     if (pathname.startsWith('/dashboard') && role === 'authority') {
       return NextResponse.redirect(new URL('/dispatch', request.url))
     }
+
+    // Prevent logged-in users from unnecessarily viewing the login screen
+    if (pathname.startsWith('/login')) {
+      if (role === 'authority') {
+        return NextResponse.redirect(new URL('/dispatch', request.url))
+      } else {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+    }
   }
 
   return supabaseResponse
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/dispatch/:path*'],
+  matcher: [
+    '/dashboard/:path*', 
+    '/dispatch/:path*',
+    '/login'
+  ],
 }
