@@ -2,8 +2,34 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Mic, AudioLines, ChevronDown, Asterisk, ArrowUp } from 'lucide-react'
+import { Plus, Mic, AudioLines, ChevronDown, ArrowUp } from 'lucide-react'
 import Sidebar from '@/components/dashboard/Sidebar'
+
+// Custom Minimalist "Auxilink" Logo 
+// Abstract 'A' connected to a central data node
+const AuxilinkLogo = ({ size = 42, className = "" }: { size?: number, className?: string }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    xmlns="http://www.w3.org/2000/svg" 
+    className={className}
+  >
+    {/* The 'A' / Auxiliary Peak */}
+    <path d="M6 10L12 3L18 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    
+    {/* The Linking Node */}
+    <circle cx="12" cy="15" r="4" stroke="currentColor" strokeWidth="2"/>
+    
+    {/* The Vertical Connection */}
+    <path d="M12 10V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    
+    {/* The Network Base */}
+    <path d="M4 15H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M16 15H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+)
 
 export default function SurvivalAIPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -12,7 +38,7 @@ export default function SurvivalAIPage() {
   return (
     <div className="flex h-screen bg-[#FAF9F6] text-slate-800 font-sans overflow-hidden">
       
-      {/* Sidebar - We pass empty map props since this page doesn't use the map */}
+      {/* Sidebar - Map props omitted since they are only used on the Dashboard */}
       <Sidebar 
         isSidebarOpen={isSidebarOpen} 
         setIsSidebarOpen={setIsSidebarOpen} 
@@ -20,12 +46,12 @@ export default function SurvivalAIPage() {
 
       <main className="flex-1 flex flex-col items-center relative h-full">
 
-        {/* Top Right Controls (Optional Placeholder for user profile/upgrade) */}
+        {/* Top Right Controls */}
         <div className="absolute top-4 right-8 flex gap-4 text-sm font-medium text-[#7D7B74]">
-           <button className="hover:text-[#2D2B2A] transition-colors">Emergency Offline Mode</button>
+           <button className="hover:text-orange-600 transition-colors">Emergency Offline Mode</button>
         </div>
 
-        {/* Center Greeting Area */}
+        {/* Center Greeting Area with Custom Logo */}
         <div className="flex-1 w-full max-w-3xl flex flex-col justify-center px-4 pb-32">
           <motion.div 
             initial={{ opacity: 0, y: 15 }}
@@ -33,10 +59,13 @@ export default function SurvivalAIPage() {
             transition={{ duration: 0.6, ease: "easeOut" }}
             className="flex flex-col items-center text-center mb-8"
           >
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <Asterisk className="text-orange-600 animate-[spin_10s_linear_infinite]" size={42} strokeWidth={1.5} />
+            <div className="flex items-center justify-center gap-4 mb-2">
+              {/* Using the custom Auxilink logo with a smooth breathing animation */}
+              <div className="animate-pulse text-orange-600">
+                 <AuxilinkLogo size={46} />
+              </div>
               <h1 className="text-[2.75rem] font-serif text-[#2D2B2A] tracking-tight">
-                SecuWear Survival AI
+                SecuWear Auxilink
               </h1>
             </div>
           </motion.div>
@@ -89,7 +118,7 @@ export default function SurvivalAIPage() {
           </div>
           
           <p className="text-center text-xs text-[#A09E96] mt-4 font-medium">
-            SecuWear AI can make mistakes. Always verify critical medical and disaster survival protocols.
+            Auxilink AI can make mistakes. Always verify critical medical and disaster survival protocols.
           </p>
         </div>
 
