@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 
-export default function MapWidget({ mapMode }: { mapMode: 'default' | 'weather' | 'traffic' }) {
+export default function MapWidget({ mapMode }: { mapMode: 'default' | 'weather' | 'traffic' | 'flood' }) {
   // Defaults to Quezon City before GPS lock is acquired
   const [location, setLocation] = useState({ lat: 14.6760, lon: 121.0437 })
   const [loading, setLoading] = useState(true)
@@ -43,6 +43,9 @@ export default function MapWidget({ mapMode }: { mapMode: 'default' | 'weather' 
   } else if (mapMode === 'traffic') {
     // Waze Live Traffic Flow
     iframeSrc = `https://embed.waze.com/iframe?zoom=15&lat=${location.lat}&lon=${location.lon}&ct=livemap`
+  } else if (mapMode === 'flood') {
+    // Windy.com Rain Accumulation (Proxy for Flood Risk/Inundation)
+    iframeSrc = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=°C&metricWind=km/h&zoom=11&overlay=rainAccu&product=ecmwf&level=surface&lat=${location.lat}&lon=${location.lon}`
   } else {
     // Default OpenStreetMap
     iframeSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${location.lon - offset}%2C${location.lat - offset}%2C${location.lon + offset}%2C${location.lat + offset}&layer=mapnik&marker=${location.lat}%2C${location.lon}`
