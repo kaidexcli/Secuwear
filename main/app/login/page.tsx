@@ -46,6 +46,7 @@ export default function LoginPage() {
 
         if (signUpError) throw signUpError
 
+        // Prevent silent duplicate registrations
         if (data.user && data.user.identities && data.user.identities.length === 0) {
           throw new Error("An account with this email already exists.")
         }
@@ -71,7 +72,22 @@ export default function LoginPage() {
         }
       }
     } catch (err: any) {
-      setError(err.message || "An error occurred during authentication.")
+      console.error("Full authentication error:", err) // Logs raw error to browser console
+      
+      // Robust error parsing to prevent '{}' UI renders
+      let errorMessage = "An unexpected error occurred during authentication."
+      
+      if (err?.message && err.message !== '{}') {
+        errorMessage = err.message
+      } else if (err?.error_description) {
+        errorMessage = err.error_description
+      } else if (typeof err === 'string' && err !== '{}') {
+        errorMessage = err
+      } else if (typeof err === 'object' && Object.keys(err).length === 0) {
+        errorMessage = "Network or Database error. Please check the browser console for details."
+      }
+      
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -83,7 +99,7 @@ export default function LoginPage() {
       {/* 3D Cinematic Background Elements */}
       <div className="absolute inset-0 pointer-events-none">
         {/* Technical Grid Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-size-[32px_32px] opacity-40"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:32px_32px] opacity-40"></div>
         
         {/* Animated Glowing Orbs */}
         <motion.div
@@ -93,7 +109,7 @@ export default function LoginPage() {
             x: [0, 50, 0]
           }}
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-10%] left-[-10%] w-125 h-125 bg-zinc-800/40 blur-[120px] rounded-full"
+          className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-zinc-800/40 blur-[120px] rounded-full"
         />
         <motion.div
           animate={{ 
@@ -102,7 +118,7 @@ export default function LoginPage() {
             y: [0, -50, 0]
           }}
           transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          className={`absolute bottom-[-10%] right-[-10%] w-125 h-125 blur-[120px] rounded-full transition-colors duration-1000 ${
+          className={`absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] blur-[120px] rounded-full transition-colors duration-1000 ${
             loginType === 'dispatch' ? 'bg-red-900/40' : 'bg-zinc-700/40'
           }`}
         />
@@ -113,7 +129,7 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.6, type: "spring", bounce: 0.3 }}
-        className="relative w-full max-w-md bg-zinc-950/60 backdrop-blur-2xl border border-white/10 rounded-4xl p-8 shadow-[0_0_40px_-10px_rgba(0,0,0,0.7)] z-10"
+        className="relative w-full max-w-md bg-zinc-950/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 shadow-[0_0_40px_-10px_rgba(0,0,0,0.7)] z-10"
       >
         
         {/* Header */}
