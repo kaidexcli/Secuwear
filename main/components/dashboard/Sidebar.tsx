@@ -1,7 +1,9 @@
 "use client"
 
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Map as MapIcon, User, Settings, LogOut, Menu, CloudRain, Car, Waves } from 'lucide-react'
+import { Map as MapIcon, User, Settings, LogOut, Menu, CloudRain, Car, Waves, Sparkles, Shield } from 'lucide-react'
 
 export default function Sidebar({ 
   isSidebarOpen, 
@@ -9,7 +11,8 @@ export default function Sidebar({
   mapMode, 
   setMapMode 
 }: any) {
-  
+  const pathname = usePathname()
+
   return (
     <motion.nav 
       animate={{ width: isSidebarOpen ? 260 : 80 }}
@@ -41,38 +44,40 @@ export default function Sidebar({
       </div>
 
       <div className="flex-1 py-6 px-3 space-y-2 overflow-y-auto">
+        
+        {/* Main Application Modules */}
         <div className="px-3 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-          {isSidebarOpen ? "Map Layers" : ""}
+          {isSidebarOpen ? "Modules" : ""}
         </div>
-        <NavItem 
-          icon={<MapIcon size={20} />} 
-          label="Standard Tracking" 
+        <NavLink 
+          href="/dashboard" 
+          icon={<Shield size={20} />} 
+          label="Safety Dashboard" 
           isOpen={isSidebarOpen} 
-          active={mapMode === 'default'} 
-          onClick={() => setMapMode('default')}
+          active={pathname === '/dashboard'} 
         />
-        <NavItem 
-          icon={<CloudRain size={20} />} 
-          label="Live Weather" 
+        <NavLink 
+          href="/ai" 
+          icon={<Sparkles size={20} />} 
+          label="Survival AI" 
           isOpen={isSidebarOpen} 
-          active={mapMode === 'weather'} 
-          onClick={() => setMapMode('weather')}
-        />
-        <NavItem 
-          icon={<Waves size={20} />} 
-          label="Flood Risk" 
-          isOpen={isSidebarOpen} 
-          active={mapMode === 'flood'} 
-          onClick={() => setMapMode('flood')}
-        />
-        <NavItem 
-          icon={<Car size={20} />} 
-          label="Traffic Flow" 
-          isOpen={isSidebarOpen} 
-          active={mapMode === 'traffic'} 
-          onClick={() => setMapMode('traffic')}
+          active={pathname === '/ai'} 
         />
 
+        {/* Map Layers (Only visible when on the dashboard) */}
+        {pathname === '/dashboard' && (
+          <>
+            <div className="px-3 pt-6 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              {isSidebarOpen ? "Map Layers" : ""}
+            </div>
+            <NavItem icon={<MapIcon size={20} />} label="Standard Tracking" isOpen={isSidebarOpen} active={mapMode === 'default'} onClick={() => setMapMode('default')} />
+            <NavItem icon={<CloudRain size={20} />} label="Live Weather" isOpen={isSidebarOpen} active={mapMode === 'weather'} onClick={() => setMapMode('weather')} />
+            <NavItem icon={<Waves size={20} />} label="Flood Risk" isOpen={isSidebarOpen} active={mapMode === 'flood'} onClick={() => setMapMode('flood')} />
+            <NavItem icon={<Car size={20} />} label="Traffic Flow" isOpen={isSidebarOpen} active={mapMode === 'traffic'} onClick={() => setMapMode('traffic')} />
+          </>
+        )}
+
+        {/* Account Settings */}
         <div className="px-3 pt-6 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
           {isSidebarOpen ? "Account" : ""}
         </div>
@@ -87,27 +92,26 @@ export default function Sidebar({
   )
 }
 
+// Used for switching Map Modes (No URL change)
 function NavItem({ icon, label, isOpen, active = false, onClick, textClass = "" }: any) {
   return (
-    <button 
-      onClick={onClick}
-      className={`w-full flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 ${
-        active ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-      } ${textClass}`}
-    >
+    <button onClick={onClick} className={`w-full flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 ${active ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'} ${textClass}`}>
       <div className="shrink-0">{icon}</div>
       <AnimatePresence>
-        {isOpen && (
-          <motion.span 
-            initial={{ opacity: 0, width: 0 }} 
-            animate={{ opacity: 1, width: 'auto' }} 
-            exit={{ opacity: 0, width: 0 }}
-            className="whitespace-nowrap text-sm"
-          >
-            {label}
-          </motion.span>
-        )}
+        {isOpen && <motion.span initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }} className="whitespace-nowrap text-sm">{label}</motion.span>}
       </AnimatePresence>
     </button>
+  )
+}
+
+// Used for switching Pages (URL change)
+function NavLink({ href, icon, label, isOpen, active = false }: any) {
+  return (
+    <Link href={href} className={`w-full flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 ${active ? 'bg-slate-100 text-slate-900 font-medium' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+      <div className="shrink-0">{icon}</div>
+      <AnimatePresence>
+        {isOpen && <motion.span initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }} className="whitespace-nowrap text-sm">{label}</motion.span>}
+      </AnimatePresence>
+    </Link>
   )
 }
