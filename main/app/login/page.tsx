@@ -8,11 +8,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 export default function LoginPage() {
   const router = useRouter()
   
-  // UI States
   const [loginType, setLoginType] = useState<'user' | 'dispatch'>('user')
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
   
-  // Form States
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -24,7 +22,6 @@ export default function LoginPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  // Force 'signin' mode if they switch to Dispatch (Authorities cannot self-register)
   useEffect(() => {
     if (loginType === 'dispatch') {
       setAuthMode('signin')
@@ -46,12 +43,11 @@ export default function LoginPage() {
 
         if (signUpError) throw signUpError
 
-        // Prevent silent duplicate registrations
         if (data.user && data.user.identities && data.user.identities.length === 0) {
           throw new Error("An account with this email already exists.")
         }
 
-        setSuccess("Registration successful! Please check your email to verify your account.")
+        setSuccess("Registration successful! You can now log in.")
         setAuthMode('signin')
         setPassword('')
       } else {
@@ -62,7 +58,6 @@ export default function LoginPage() {
 
         if (signInError) throw signInError
 
-        // Force Next.js to update and run the proxy.ts middleware
         router.refresh()
         
         if (loginType === 'dispatch') {
@@ -72,19 +67,17 @@ export default function LoginPage() {
         }
       }
     } catch (err: any) {
-      console.error("Full authentication error:", err) // Logs raw error to browser console
+      console.error("Full authentication error:", err) 
       
-      // Robust error parsing to prevent '{}' UI renders
-      let errorMessage = "An unexpected error occurred during authentication."
+      // Nuclear error handling: Forces the exact raw error string to display on the UI
+      let errorMessage = "System Error: "
       
       if (err?.message && err.message !== '{}') {
         errorMessage = err.message
       } else if (err?.error_description) {
         errorMessage = err.error_description
-      } else if (typeof err === 'string' && err !== '{}') {
-        errorMessage = err
-      } else if (typeof err === 'object' && Object.keys(err).length === 0) {
-        errorMessage = "Network or Database error. Please check the browser console for details."
+      } else {
+        errorMessage += JSON.stringify(err, null, 2)
       }
       
       setError(errorMessage)
@@ -96,12 +89,9 @@ export default function LoginPage() {
   return (
     <div className="relative flex items-center justify-center min-h-screen bg-black overflow-hidden px-4 text-white font-sans">
       
-      {/* 3D Cinematic Background Elements */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* Technical Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-size-[32px_32px] opacity-40"></div>
         
-        {/* Animated Glowing Orbs */}
         <motion.div
           animate={{ 
             scale: [1, 1.2, 1], 
@@ -124,7 +114,6 @@ export default function LoginPage() {
         />
       </div>
 
-      {/* Main Glassmorphism Card */}
       <motion.div 
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -132,7 +121,6 @@ export default function LoginPage() {
         className="relative w-full max-w-md bg-zinc-950/60 backdrop-blur-2xl border border-white/10 rounded-4xl p-8 shadow-[0_0_40px_-10px_rgba(0,0,0,0.7)] z-10"
       >
         
-        {/* Header */}
         <div className="text-center mb-8">
           <motion.h1 layout className="text-3xl font-bold tracking-tight text-white">
             SecuWear
@@ -144,7 +132,6 @@ export default function LoginPage() {
           </motion.p>
         </div>
 
-        {/* Portal Toggle Tabs */}
         <div className="flex p-1.5 bg-black/50 border border-white/5 rounded-xl mb-8 relative z-20">
           <button
             onClick={() => setLoginType('user')}
@@ -168,14 +155,13 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {/* Alerts (Error / Success) */}
         <AnimatePresence mode="wait">
           {error && (
             <motion.div 
               initial={{ opacity: 0, height: 0 }} 
               animate={{ opacity: 1, height: 'auto' }} 
               exit={{ opacity: 0, height: 0 }}
-              className="mb-6 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm text-center"
+              className="mb-6 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm text-center wrap-break-word"
             >
               {error}
             </motion.div>
@@ -192,7 +178,6 @@ export default function LoginPage() {
           )}
         </AnimatePresence>
 
-        {/* Auth Form */}
         <form onSubmit={handleAuth} className="space-y-5 relative z-20">
           <motion.div layout>
             <label className="block text-sm font-medium text-zinc-400 mb-1.5 pl-1">
@@ -242,7 +227,6 @@ export default function LoginPage() {
           </motion.button>
         </form>
 
-        {/* Footer Toggle (Only show for User Portal) */}
         {loginType === 'user' && (
           <motion.div layout className="mt-8 text-center">
             <p className="text-zinc-500 text-sm">
@@ -262,7 +246,6 @@ export default function LoginPage() {
           </motion.div>
         )}
         
-        {/* Dispatch restriction note */}
         {loginType === 'dispatch' && (
           <motion.div layout className="mt-8 text-center">
             <p className="text-zinc-600 text-xs px-4">
