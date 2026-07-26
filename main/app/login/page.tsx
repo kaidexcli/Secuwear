@@ -5,6 +5,13 @@ import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { motion, AnimatePresence } from 'framer-motion'
 
+// Temporary debugging lines
+if (typeof window !== 'undefined') {
+  console.log("Checking Supabase Config:");
+  console.log("URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log("Key Exists:", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
+
 export default function LoginPage() {
   const router = useRouter()
   
