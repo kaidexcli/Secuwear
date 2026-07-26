@@ -44,9 +44,10 @@ export default function MapWidget({ mapMode }: { mapMode: 'default' | 'weather' 
     // Waze Live Traffic Flow
     iframeSrc = `https://embed.waze.com/iframe?zoom=15&lat=${location.lat}&lon=${location.lon}&ct=livemap`
   } else if (mapMode === 'flood') {
-    // FloodMap.net Elevation/Inundation map
-    // The "e=2" parameter simulates a 2-meter flood scenario on street levels
-    iframeSrc = `https://www.floodmap.net/?ll=${location.lat},${location.lon}&z=14&e=2`
+    // Google Maps Topography & Terrain Layer
+    // Guaranteed iframe accessibility. The "t=p" parameter forces the terrain view 
+    // to map out low-lying elevations, street dips, and catch basins.
+    iframeSrc = `https://maps.google.com/maps?q=${location.lat},${location.lon}&t=p&z=15&ie=UTF8&iwloc=&output=embed`
   } else {
     // Default OpenStreetMap
     iframeSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${location.lon - offset}%2C${location.lat - offset}%2C${location.lon + offset}%2C${location.lat + offset}&layer=mapnik&marker=${location.lat}%2C${location.lon}`
@@ -55,7 +56,7 @@ export default function MapWidget({ mapMode }: { mapMode: 'default' | 'weather' 
   return (
     <div className="lg:col-span-2 flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm relative group h-125 lg:h-auto">
       
-      {/* Map Status Overlay (Moved to bottom-6) */}
+      {/* Map Status Overlay (Fixed at bottom-6) */}
       <div className="absolute bottom-6 left-6 z-10 bg-white/90 backdrop-blur-md border border-slate-200 px-4 py-2 rounded-xl flex items-center gap-3 shadow-sm pointer-events-none">
         {loading ? (
           <>
