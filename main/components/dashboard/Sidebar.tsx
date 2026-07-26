@@ -1,7 +1,7 @@
 "use client"
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { Map as MapIcon, User, Settings, LogOut, Menu, CloudRain, Car } from 'lucide-react'
+import { Map as MapIcon, User, Settings, LogOut, Menu, CloudRain, Car, Waves } from 'lucide-react'
 
 export default function Sidebar({ 
   isSidebarOpen, 
@@ -57,6 +57,13 @@ export default function Sidebar({
           isOpen={isSidebarOpen} 
           active={mapMode === 'weather'} 
           onClick={() => setMapMode('weather')}
+        />
+        <NavItem 
+          icon={<Waves size={20} />} 
+          label="Flood Risk" 
+          isOpen={isSidebarOpen} 
+          active={mapMode === 'flood'} 
+          onClick={() => setMapMode('flood')}
         />
         <NavItem 
           icon={<Car size={20} />} 
