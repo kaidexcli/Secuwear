@@ -2,18 +2,21 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ShieldAlert, Bell, BatteryMedium, Wifi } from 'lucide-react'
+import { Siren, LifeBuoy, Bell, BatteryMedium, Wifi } from 'lucide-react'
 import Sidebar from '@/components/dashboard/Sidebar'
 import MapWidget from '@/components/dashboard/MapWidget'
 
 export default function UserDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [mapMode, setMapMode] = useState<'default' | 'weather' | 'traffic'>('default')
-  const [sosActive, setSosActive] = useState(false)
+  const [mapMode, setMapMode] = useState<'default' | 'weather' | 'traffic' | 'flood'>('default')
+  
+  // Tracks which specific emergency is active, or null if none
+  const [activeEmergency, setActiveEmergency] = useState<'crime' | 'rescue' | null>(null)
 
-  const handleSOS = () => {
-    setSosActive(true)
-    setTimeout(() => setSosActive(false), 5000) 
+  const handleSOS = (type: 'crime' | 'rescue') => {
+    setActiveEmergency(type)
+    // Auto-reset after 5 seconds for prototype demonstration
+    setTimeout(() => setActiveEmergency(null), 5000) 
   }
 
   return (
@@ -67,31 +70,57 @@ export default function UserDashboard() {
           {/* Action Sidebar */}
           <div className="space-y-6 flex flex-col">
             
-            {/* Minimalist SOS Card */}
-            <motion.div 
-              className={`relative overflow-hidden rounded-3xl border p-8 flex flex-col items-center justify-center text-center transition-colors duration-500 shadow-sm ${
-                sosActive ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'
-              }`}
-            >
-              <ShieldAlert size={48} className={`mb-4 ${sosActive ? 'text-red-600 animate-bounce' : 'text-slate-800'}`} />
-              <h2 className="text-xl font-bold mb-2">Emergency Override</h2>
-              <p className="text-sm mb-8 text-slate-500">
-                Triggering this will immediately dispatch your GPS coordinates to response authorities.
+            {/* Split Emergency Override Card */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+              <h2 className="text-lg font-bold mb-1 text-slate-900">Emergency Dispatch</h2>
+              <p className="text-sm mb-6 text-slate-500">
+                Select the appropriate emergency type to dispatch your GPS coordinates to authorities.
               </p>
-              
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleSOS}
-                className={`w-full py-4 rounded-2xl font-bold tracking-widest uppercase transition-all duration-300 ${
-                  sosActive 
-                    ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' 
-                    : 'bg-slate-900 hover:bg-slate-800 text-white shadow-md'
-                }`}
-              >
-                {sosActive ? 'SOS Dispatched' : 'Trigger SOS'}
-              </motion.button>
-            </motion.div>
+
+              <div className="space-y-4">
+                
+                {/* Crime Button */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleSOS('crime')}
+                  className={`w-full p-4 flex items-center justify-start gap-4 rounded-2xl transition-all duration-300 border-2 ${
+                    activeEmergency === 'crime' 
+                      ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-600/30' 
+                      : 'bg-white border-red-100 hover:border-red-200 hover:bg-red-50'
+                  }`}
+                >
+                  <div className={`p-3 rounded-xl ${activeEmergency === 'crime' ? 'bg-white/20' : 'bg-red-100'}`}>
+                    <Siren size={24} className={activeEmergency === 'crime' ? 'text-white animate-pulse' : 'text-red-600'} />
+                  </div>
+                  <div className="text-left">
+                    <div className={`text-lg font-bold tracking-wide uppercase ${activeEmergency === 'crime' ? 'text-white' : 'text-red-600'}`}>Crime SOS</div>
+                    <div className={`text-xs font-medium ${activeEmergency === 'crime' ? 'text-red-100' : 'text-slate-500'}`}>Police & Security Response</div>
+                  </div>
+                </motion.button>
+
+                {/* Rescue Button */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleSOS('rescue')}
+                  className={`w-full p-4 flex items-center justify-start gap-4 rounded-2xl transition-all duration-300 border-2 ${
+                    activeEmergency === 'rescue' 
+                      ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/30' 
+                      : 'bg-white border-orange-100 hover:border-orange-200 hover:bg-orange-50'
+                  }`}
+                >
+                  <div className={`p-3 rounded-xl ${activeEmergency === 'rescue' ? 'bg-white/20' : 'bg-orange-100'}`}>
+                    <LifeBuoy size={24} className={activeEmergency === 'rescue' ? 'text-white animate-pulse' : 'text-orange-500'} />
+                  </div>
+                  <div className="text-left">
+                    <div className={`text-lg font-bold tracking-wide uppercase ${activeEmergency === 'rescue' ? 'text-white' : 'text-orange-600'}`}>Rescue SOS</div>
+                    <div className={`text-xs font-medium ${activeEmergency === 'rescue' ? 'text-orange-100' : 'text-slate-500'}`}>Medical & Disaster Response</div>
+                  </div>
+                </motion.button>
+
+              </div>
+            </div>
 
           </div>
         </div>
