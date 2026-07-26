@@ -44,9 +44,9 @@ export default function MapWidget({ mapMode }: { mapMode: 'default' | 'weather' 
     // Waze Live Traffic Flow
     iframeSrc = `https://embed.waze.com/iframe?zoom=15&lat=${location.lat}&lon=${location.lon}&ct=livemap`
   } else if (mapMode === 'flood') {
-    // UP Project NOAH / HazardHunterPH proxy
-    // Provides street-by-street flood hazard mapping based on LiDAR data for the Philippines
-    iframeSrc = `https://noah.up.edu.ph/know-your-hazards?lat=${location.lat}&lng=${location.lon}`
+    // FloodMap.net Elevation/Inundation map
+    // The "e=2" parameter simulates a 2-meter flood scenario on street levels
+    iframeSrc = `https://www.floodmap.net/?ll=${location.lat},${location.lon}&z=14&e=2`
   } else {
     // Default OpenStreetMap
     iframeSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${location.lon - offset}%2C${location.lat - offset}%2C${location.lon + offset}%2C${location.lat + offset}&layer=mapnik&marker=${location.lat}%2C${location.lon}`
@@ -55,8 +55,8 @@ export default function MapWidget({ mapMode }: { mapMode: 'default' | 'weather' 
   return (
     <div className="lg:col-span-2 flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm relative group h-125 lg:h-auto">
       
-      {/* Map Status Overlay */}
-      <div className="absolute top-6 left-6 z-10 bg-white/90 backdrop-blur-md border border-slate-200 px-4 py-2 rounded-xl flex items-center gap-3 shadow-sm pointer-events-none">
+      {/* Map Status Overlay (Moved to bottom-6) */}
+      <div className="absolute bottom-6 left-6 z-10 bg-white/90 backdrop-blur-md border border-slate-200 px-4 py-2 rounded-xl flex items-center gap-3 shadow-sm pointer-events-none">
         {loading ? (
           <>
             <div className="w-3 h-3 rounded-full bg-yellow-500 animate-pulse"></div>
