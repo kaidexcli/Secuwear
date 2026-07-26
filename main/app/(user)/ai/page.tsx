@@ -65,7 +65,7 @@ export default function SurvivalAIPage() {
                  <AuxilinkLogo size={46} />
               </div>
               <h1 className="text-[2.75rem] font-serif text-[#2D2B2A] tracking-tight">
-                SecuWear Auxilink
+                SecuWear Auxilink Agent
               </h1>
             </div>
           </motion.div>
