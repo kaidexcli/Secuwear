@@ -44,10 +44,8 @@ export default function MapWidget({ mapMode }: { mapMode: 'default' | 'weather' 
     // Waze Live Traffic Flow
     iframeSrc = `https://embed.waze.com/iframe?zoom=15&lat=${location.lat}&lon=${location.lon}&ct=livemap`
   } else if (mapMode === 'flood') {
-    // Google Maps Topography & Terrain Layer
-    // Guaranteed iframe accessibility. The "t=p" parameter forces the terrain view 
-    // to map out low-lying elevations, street dips, and catch basins.
-    iframeSrc = `https://maps.google.com/maps?q=${location.lat},${location.lon}&t=p&z=15&ie=UTF8&iwloc=&output=embed`
+    // Reverted: Windy.com Rain Accumulation (Proxy for Flood Risk/Inundation)
+    iframeSrc = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=°C&metricWind=km/h&zoom=11&overlay=rainAccu&product=ecmwf&level=surface&lat=${location.lat}&lon=${location.lon}`
   } else {
     // Default OpenStreetMap
     iframeSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${location.lon - offset}%2C${location.lat - offset}%2C${location.lon + offset}%2C${location.lat + offset}&layer=mapnik&marker=${location.lat}%2C${location.lon}`
