@@ -26,25 +26,28 @@ export async function POST(req: Request) {
         "Content-Type": "application/json",
       },
       method: "POST",
+      cache: "no-store", // 2. CRITICAL: Prevents Next.js from caching the request and throwing 'fetch failed'
       body: JSON.stringify({
         inputs: formattedPrompt,
         parameters: {
           max_new_tokens: 200,
           temperature: 0.3,
           return_full_text: false
+        },
+        options: {
+          wait_for_model: false // 3. CRITICAL: Forces Hugging Face to reply instantly if asleep, preventing Vercel network timeouts
         }
       }),
     })
 
-    // 2. SAFE PARSING: Read as text first to prevent JSON crashes on 504/503 errors
+    // 4. SAFE PARSING: Read as text first to prevent JSON crashes on 504/503 HTML error pages
     const textResponse = await response.text()
     
     let result;
     try {
       result = JSON.parse(textResponse)
     } catch (parseError) {
-      // If Hugging Face sends HTML instead of JSON, we catch it here
-      return NextResponse.json({ response: `Hugging Face API Error. Status: ${response.status}. The server is likely overloaded.` })
+      return NextResponse.json({ response: `Hugging Face API Error. Status: ${response.status}. The server might be overloaded.` })
     }
 
     if (!response.ok || result.error) {
@@ -65,7 +68,7 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("Auxilink API Error:", error)
-    // 3. DEBUG EXPOSURE: Print the exact system error to the UI so we can see what went wrong
+    // 5. DEBUG EXPOSURE: Print the exact system error to the UI
     return NextResponse.json({ response: `Backend Error: ${error.message || "Unknown execution failure."}` })
   }
 }
