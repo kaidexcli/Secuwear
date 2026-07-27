@@ -1,64 +1,291 @@
-import { NextResponse } from 'next/server'
+"use client"
 
-export async function POST(req: Request) {
-  try {
-    const { prompt } = await req.json()
+import { useState, useRef, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Plus, Mic, AudioLines, ChevronDown, ArrowUp, PhoneCall, Loader2, Sparkles } from 'lucide-react'
+import Sidebar from '@/components/dashboard/Sidebar'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
-    if (!prompt) {
-      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 })
+interface Message {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+}
+
+// Custom Minimalist "Auxilink" Logo 
+const AuxilinkLogo = ({ size = 42, className = "" }: { size?: number, className?: string }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    xmlns="http://www.w3.org/2000/svg" 
+    className={className}
+  >
+    <path d="M6 10L12 3L18 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <circle cx="12" cy="15" r="4" stroke="currentColor" strokeWidth="2"/>
+    <path d="M12 10V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M4 15H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M16 15H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+)
+
+export default function SurvivalAIPage() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [prompt, setPrompt] = useState("")
+  const [messages, setMessages] = useState<Message[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to latest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, isLoading])
+
+  const handleSubmit = async () => {
+    if (!prompt.trim() || isLoading) return
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: prompt.trim()
     }
 
-    const systemPrompt = "You are SecuWear Auxilink, an expert AI in disaster survival and emergency response in the Philippines."
-    const formattedPrompt = `<|im_start|>system\n${systemPrompt}<|im_end|>\n<|im_start|>user\n${prompt}<|im_end|>\n<|im_start|>assistant\n`
+    setMessages(prev => [...prev, userMessage])
+    setPrompt("")
+    setIsLoading(true)
 
-    const hfToken = process.env.HF_TOKEN 
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: userMessage.content })
+      })
 
-    if (!hfToken) {
-      return NextResponse.json({ response: "Server Configuration Error: HF_TOKEN environment variable is missing." })
-    }
+      const data = await res.json()
 
-    const response = await fetch("https://api-inference.huggingface.co/models/sojukai/sw-llemon-2.7-7b", {
-      headers: {
-        Authorization: `Bearer ${hfToken}`,
-        "Content-Type": "application/json",
-      },
-      method: "POST",
-      body: JSON.stringify({
-        inputs: formattedPrompt,
-        parameters: {
-          max_new_tokens: 200,
-          temperature: 0.3,
-          return_full_text: false
-        }
-      }),
-    })
-
-    const result = await response.json()
-
-    // 1. Check if Hugging Face returned an error object (like a Cold Start)
-    if (!response.ok || result.error) {
-      // If the model is sleeping, tell the user exactly how long to wait
-      if (result.error && result.error.toLowerCase().includes('loading')) {
-        const waitTime = Math.round(result.estimated_time || 20)
-        return NextResponse.json({ response: `*System Note: The SecuWear AI is currently booting up from sleep mode on the server. Please wait about ${waitTime} seconds and ask your question again.*` })
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.response || "No response received from Auxilink agent."
       }
-      return NextResponse.json({ response: `API Error: ${result.error || 'Failed to connect to Hugging Face.'}` })
+
+      setMessages(prev => [...prev, assistantMessage])
+    } catch (error) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: "Connection error: Unable to connect to the SecuWear Auxilink server. Please check your network."
+        }
+      ])
+    } finally {
+      setIsLoading(false)
     }
-
-    // 2. Check for a successful text generation array
-    if (Array.isArray(result) && result.length > 0) {
-      const generatedText = result[0].generated_text || result[0].text || ""
-      
-      // Clean out the prompt tags just in case return_full_text malfunctions
-      const cleanText = generatedText.replace(formattedPrompt, "").trim()
-      return NextResponse.json({ response: cleanText })
-    }
-
-    // 3. Absolute fallback
-    return NextResponse.json({ response: "Received an empty or unreadable response from the model." })
-
-  } catch (error) {
-    console.error("Auxilink API Error:", error)
-    return NextResponse.json({ response: "Fatal Error: Failed to establish a backend connection." })
   }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit()
+    }
+  }
+
+  // Parses AI response for Markdown formatting and injects Hotline buttons
+  const renderMessageContent = (text: string) => {
+    const phoneRegex = /(\b9-1-1\b|\b911\b|\b\d{3,4}[-\s]?\d{3,4}[-\s]?\d{3,4}\b|\(02\)\s?\d{4}[-\s]?\d{4}|\b09\d{9}\b)/g
+    const matches = text.match(phoneRegex)
+
+    return (
+      <div className="space-y-4">
+        {/* ReactMarkdown cleanly renders lists, bold texts, and spacing inside a wrapper div */}
+        <div className="text-[#2D2B2A] text-[0.98rem] leading-relaxed">
+          <ReactMarkdown 
+            remarkPlugins={[remarkGfm]}
+            components={{
+              p: ({...props}) => <p className="mb-3 last:mb-0" {...props} />,
+              ul: ({...props}) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
+              ol: ({...props}) => <ol className="list-decimal pl-5 mb-3 space-y-1" {...props} />,
+              li: ({...props}) => <li className="pl-1" {...props} />,
+              strong: ({...props}) => <strong className="font-semibold text-slate-900" {...props} />,
+              h1: ({...props}) => <h1 className="text-xl font-bold mb-3 mt-4" {...props} />,
+              h2: ({...props}) => <h2 className="text-lg font-bold mb-2 mt-3" {...props} />,
+              h3: ({...props}) => <h3 className="text-md font-bold mb-2 mt-3" {...props} />,
+            }}
+          >
+            {text}
+          </ReactMarkdown>
+        </div>
+        
+        {/* Dynamic Emergency Dial Badge rendering */}
+        {matches && matches.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200/60 mt-2">
+            {Array.from(new Set(matches)).map((num, idx) => (
+              <a
+                key={idx}
+                href={`tel:${num.replace(/[^0-9+]/g, '')}`}
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors shadow-sm"
+              >
+                <PhoneCall size={14} className="animate-pulse" />
+                <span>Call Hotline: {num}</span>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-screen bg-[#FAF9F6] text-slate-800 font-sans overflow-hidden">
+      
+      <Sidebar 
+        isSidebarOpen={isSidebarOpen} 
+        setIsSidebarOpen={setIsSidebarOpen} 
+      />
+
+      <main className="flex-1 flex flex-col items-center relative h-full">
+
+        {/* Chat Feed / Greeting Area */}
+        <div className="flex-1 w-full max-w-3xl flex flex-col px-4 pt-16 pb-36 overflow-y-auto scrollbar-thin">
+          
+          {/* HERO GREETING */}
+          {messages.length === 0 && (
+            <div className="flex-1 flex flex-col justify-center items-center my-auto">
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+                className="flex flex-col items-center text-center"
+              >
+                <div className="flex items-center justify-center gap-4 mb-2">
+                  <div className="animate-pulse text-orange-600">
+                    <AuxilinkLogo size={46} />
+                  </div>
+                  <h1 className="text-[2.75rem] font-serif text-[#2D2B2A] tracking-tight">
+                    SecuWear Auxilink Agent
+                  </h1>
+                </div>
+                <p className="text-[#7D7B74] text-sm font-medium max-w-md mt-2">
+                  Fine-tuned on Philippine emergency response directories, disaster survival frameworks, and life-safety protocols.
+                </p>
+              </motion.div>
+            </div>
+          )}
+
+          {/* CONVERSATION THREAD */}
+          {messages.length > 0 && (
+            <div className="space-y-6 pt-4">
+              <AnimatePresence initial={false}>
+                {messages.map((msg) => (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {/* Assistant Avatar */}
+                    {msg.role === 'assistant' && (
+                      <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 border border-orange-200 mt-1">
+                        <AuxilinkLogo size={20} />
+                      </div>
+                    )}
+
+                    {/* Message Body */}
+                    <div className={`max-w-[85%] ${
+                      msg.role === 'user'
+                        ? 'bg-[#2D2B2A] text-white px-4 py-3 rounded-2xl rounded-tr-xs text-[0.98rem] shadow-sm'
+                        : 'text-[#2D2B2A] py-1'
+                    }`}>
+                      {msg.role === 'assistant' ? (
+                        renderMessageContent(msg.content)
+                      ) : (
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              {/* Thinking/Loading State */}
+              {isLoading && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex gap-4 items-center text-[#A09E96]"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0 border border-orange-200">
+                    <AuxilinkLogo size={20} />
+                  </div>
+                  <div className="flex items-center gap-2 text-sm font-medium text-[#7D7B74]">
+                    <Loader2 size={16} className="animate-spin text-orange-600" />
+                    <span>Auxilink searching emergency directories...</span>
+                  </div>
+                </motion.div>
+              )}
+              
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+
+        {/* Floating Input Area */}
+        <div className="absolute bottom-6 w-full max-w-3xl px-4 bg-linear-to-t from-[#FAF9F6] via-[#FAF9F6] to-transparent pt-6">
+          <div className="bg-white border border-[#E5E3D9] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-3 flex flex-col transition-shadow focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+            
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="How can I help you survive today?"
+              className="w-full bg-transparent resize-none outline-none text-[1.05rem] placeholder:text-[#A09E96] text-[#2D2B2A] min-h-12 max-h-36 p-2 scrollbar-none"
+              rows={2}
+            />
+
+            <div className="flex items-center justify-between mt-2">
+              <button className="p-2 text-[#A09E96] hover:bg-[#F2F0E9] rounded-xl transition-colors">
+                <Plus size={22} strokeWidth={2} />
+              </button>
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 text-xs text-orange-700 font-semibold px-2.5 py-1.5 bg-orange-50 border border-orange-200/60 rounded-lg cursor-pointer transition-colors mr-2">
+                  <Sparkles size={14} className="text-orange-600" />
+                  sw-llemon-2.7-7b <ChevronDown size={14} />
+                </div>
+                
+                <button className="p-2 text-[#A09E96] hover:bg-[#F2F0E9] rounded-xl transition-colors">
+                  <Mic size={20} />
+                </button>
+                <button className="p-2 text-[#A09E96] hover:bg-[#F2F0E9] rounded-xl transition-colors">
+                  <AudioLines size={20} />
+                </button>
+                
+                <button 
+                  onClick={handleSubmit}
+                  disabled={isLoading || prompt.trim().length === 0}
+                  className={`p-2 rounded-xl transition-all ml-1 ${
+                    prompt.trim().length > 0 && !isLoading
+                      ? 'bg-orange-600 text-white shadow-sm hover:bg-orange-700 cursor-pointer' 
+                      : 'bg-[#E5E3D9] text-[#A09E96] cursor-not-allowed'
+                  }`}
+                >
+                  <ArrowUp size={20} strokeWidth={2.5} />
+                </button>
+              </div>
+            </div>
+
+          </div>
+          
+          <p className="text-center text-xs text-[#A09E96] mt-3 font-medium pb-2">
+            Auxilink AI can make mistakes. Always verify critical medical and disaster survival protocols.
+          </p>
+        </div>
+
+      </main>
+    </div>
+  )
 }
