@@ -1,44 +1,56 @@
-// Force Vercel to wait up to 60 seconds (prevents the 10-second crash)
-export const maxDuration = 60; 
-
 export async function POST(req: Request) {
   try {
     const { message } = await req.json();
 
     const systemPrompt = "You are SecuWear Auxilink, an expert AI in disaster survival and emergency response in the Philippines.";
+    // Formatting explicitly for the OpenHermes/Mistral architecture you fine-tuned
     const formattedPrompt = `<|im_start|>system\n${systemPrompt}<|im_end|>\n<|im_start|>user\n${message}<|im_end|>\n<|im_start|>assistant\n`;
+
+    // .trim() ensures no accidental spaces from Vercel's dashboard ruin the token
+    const hfToken = process.env.HF_TOKEN?.trim(); 
+
+    if (!hfToken) {
+      return Response.json({ error: "Configuration Error: HF_TOKEN is missing." }, { status: 400 });
+    }
 
     const response = await fetch("https://api-inference.huggingface.co/models/sojukai/sw-llemon-2.7-7b", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.HF_TOKEN}`
+        "Authorization": `Bearer ${hfToken}`
       },
-      cache: "no-store", // Crucial: Prevents Next.js "fetch failed" caching errors
+      // cache: "no-store" prevents Next.js from caching error states
+      cache: "no-store", 
       body: JSON.stringify({
         inputs: formattedPrompt,
         parameters: {
-          max_new_tokens: 200,
+          max_new_tokens: 250,
           temperature: 0.3,
           return_full_text: false
         },
         options: {
-          wait_for_model: true // Forces the server to hold the connection until the model wakes up
+          // CRITICAL FIX: Must be false so Vercel doesn't timeout and crash after 10 seconds
+          wait_for_model: false 
         }
       }),
     });
 
     if (!response.ok) {
-       const err = await response.json().catch(() => ({}));
-       const errorMsg = err.error || "Failed to fetch from HF";
+       // Gracefully catch Hugging Face JSON errors
+       const errorData = await response.json().catch(() => ({}));
        
-       if (errorMsg.toLowerCase().includes("loading")) {
-           return Response.json({ response: `*System Note: The SecuWear AI is currently booting up. Please wait 20 seconds and ask again.*` });
+       // If the model is sleeping, intercept the error and tell the frontend
+       if (errorData.error && errorData.error.toLowerCase().includes("loading")) {
+           const waitTime = Math.round(errorData.estimated_time || 25);
+           return Response.json({ response: `*System Note: The SecuWear AI is currently booting up from sleep mode on the server. Please wait about ${waitTime} seconds and try again.*` });
        }
-       return Response.json({ error: errorMsg }, { status: response.status });
+       
+       return Response.json({ error: `Hugging Face API Error: ${errorData.error || response.statusText}` }, { status: response.status });
     }
 
     const data = await response.json();
+    
+    // Extract the text safely
     const generatedText = data[0]?.generated_text || data[0]?.text || "";
     const cleanText = generatedText.replace(formattedPrompt, "").trim();
 
@@ -46,6 +58,7 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("API Crash:", error);
-    return Response.json({ error: "AI Server unreachable or fetch failed." }, { status: 500 });
+    // If it STILL crashes, it will now tell you the EXACT Javascript error
+    return Response.json({ error: `Backend crash: ${error.message}` }, { status: 500 });
   }
 }
