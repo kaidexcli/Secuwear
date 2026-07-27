@@ -9,7 +9,7 @@ export async function POST(req: Request) {
         "Authorization": `Bearer ${process.env.HF_TOKEN}`
       },
       body: JSON.stringify({
-        model: "sojukai/sw-llemon-2.7-7b", 
+        model: "deepseek-ai/DeepSeek-R1", 
         messages: [{ role: "user", content: message }],
         max_tokens: 4096,
         temperature: 0.6,     
