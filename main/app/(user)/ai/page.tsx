@@ -59,7 +59,7 @@ export default function SurvivalAIPage() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage.content }) // Matches your new backend mapping
+        body: JSON.stringify({ message: userMessage.content })
       })
 
       const data = await res.json()
@@ -67,17 +67,18 @@ export default function SurvivalAIPage() {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
+        // Now safely catches either a successful response or a formatted error message
         content: data.response || data.error || "No response received from Auxilink agent."
       }
 
       setMessages(prev => [...prev, assistantMessage])
-    } catch (error) {
+    } catch (error: any) {
       setMessages(prev => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: "Connection error: Unable to connect to the SecuWear Auxilink server. Please check your network."
+          content: `Connection error: Unable to connect to the SecuWear server. Details: ${error.message}`
         }
       ])
     } finally {
