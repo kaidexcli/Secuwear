@@ -1,32 +1,20 @@
-import { NextResponse } from 'next/server'
-
-// 1. VERCEL OVERRIDE: Force Vercel to wait up to 60 seconds instead of 10s
+// Force Vercel to wait up to 60 seconds (prevents the 10-second crash)
 export const maxDuration = 60; 
 
 export async function POST(req: Request) {
   try {
-    const { prompt } = await req.json()
+    const { message } = await req.json();
 
-    if (!prompt) {
-      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 })
-    }
-
-    const systemPrompt = "You are SecuWear Auxilink, an expert AI in disaster survival and emergency response in the Philippines."
-    const formattedPrompt = `<|im_start|>system\n${systemPrompt}<|im_end|>\n<|im_start|>user\n${prompt}<|im_end|>\n<|im_start|>assistant\n`
-
-    const hfToken = process.env.HF_TOKEN 
-
-    if (!hfToken) {
-      return NextResponse.json({ response: "Server Configuration Error: HF_TOKEN environment variable is missing in Vercel." })
-    }
+    const systemPrompt = "You are SecuWear Auxilink, an expert AI in disaster survival and emergency response in the Philippines.";
+    const formattedPrompt = `<|im_start|>system\n${systemPrompt}<|im_end|>\n<|im_start|>user\n${message}<|im_end|>\n<|im_start|>assistant\n`;
 
     const response = await fetch("https://api-inference.huggingface.co/models/sojukai/sw-llemon-2.7-7b", {
-      headers: {
-        Authorization: `Bearer ${hfToken}`,
-        "Content-Type": "application/json",
-      },
       method: "POST",
-      cache: "no-store", // 2. CRITICAL: Prevents Next.js from caching the request and throwing 'fetch failed'
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.HF_TOKEN}`
+      },
+      cache: "no-store", // Crucial: Prevents Next.js "fetch failed" caching errors
       body: JSON.stringify({
         inputs: formattedPrompt,
         parameters: {
@@ -35,40 +23,29 @@ export async function POST(req: Request) {
           return_full_text: false
         },
         options: {
-          wait_for_model: false // 3. CRITICAL: Forces Hugging Face to reply instantly if asleep, preventing Vercel network timeouts
+          wait_for_model: true // Forces the server to hold the connection until the model wakes up
         }
       }),
-    })
+    });
 
-    // 4. SAFE PARSING: Read as text first to prevent JSON crashes on 504/503 HTML error pages
-    const textResponse = await response.text()
-    
-    let result;
-    try {
-      result = JSON.parse(textResponse)
-    } catch (parseError) {
-      return NextResponse.json({ response: `Hugging Face API Error. Status: ${response.status}. The server might be overloaded.` })
+    if (!response.ok) {
+       const err = await response.json().catch(() => ({}));
+       const errorMsg = err.error || "Failed to fetch from HF";
+       
+       if (errorMsg.toLowerCase().includes("loading")) {
+           return Response.json({ response: `*System Note: The SecuWear AI is currently booting up. Please wait 20 seconds and ask again.*` });
+       }
+       return Response.json({ error: errorMsg }, { status: response.status });
     }
 
-    if (!response.ok || result.error) {
-      if (result.error && result.error.toLowerCase().includes('loading')) {
-        const waitTime = Math.round(result.estimated_time || 20)
-        return NextResponse.json({ response: `*System Note: The SecuWear AI is currently booting up from sleep mode on the server. Please wait about ${waitTime} seconds and try again.*` })
-      }
-      return NextResponse.json({ response: `API Error: ${result.error || 'Failed to connect to Hugging Face.'}` })
-    }
+    const data = await response.json();
+    const generatedText = data[0]?.generated_text || data[0]?.text || "";
+    const cleanText = generatedText.replace(formattedPrompt, "").trim();
 
-    if (Array.isArray(result) && result.length > 0) {
-      const generatedText = result[0].generated_text || result[0].text || ""
-      const cleanText = generatedText.replace(formattedPrompt, "").trim()
-      return NextResponse.json({ response: cleanText })
-    }
-
-    return NextResponse.json({ response: "Received an empty or unreadable response from the model." })
+    return Response.json({ response: cleanText });
 
   } catch (error: any) {
-    console.error("Auxilink API Error:", error)
-    // 5. DEBUG EXPOSURE: Print the exact system error to the UI
-    return NextResponse.json({ response: `Backend Error: ${error.message || "Unknown execution failure."}` })
+    console.error("API Crash:", error);
+    return Response.json({ error: "AI Server unreachable or fetch failed." }, { status: 500 });
   }
 }
