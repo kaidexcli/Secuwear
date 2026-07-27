@@ -79,7 +79,7 @@ export default function SurvivalAIPage() {
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: "Connection error: Unable to connect to the SecuWear Auxilink server. Please dial 9-1-1 directly if in immediate danger."
+          content: "Connection error: Unable to connect to the SecuWear Auxilink server. Please check your network."
         }
       ])
     } finally {
@@ -148,14 +148,6 @@ export default function SurvivalAIPage() {
       />
 
       <main className="flex-1 flex flex-col items-center relative h-full">
-
-        {/* Top Right Controls */}
-        <div className="absolute top-4 right-8 flex gap-4 text-sm font-medium text-[#7D7B74] z-10">
-          <button className="hover:text-orange-600 transition-colors flex items-center gap-1.5 bg-white/80 backdrop-blur border border-[#E5E3D9] px-3 py-1.5 rounded-full shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Emergency Offline Mode
-          </button>
-        </div>
 
         {/* Chat Feed / Greeting Area */}
         <div className="flex-1 w-full max-w-3xl flex flex-col px-4 pt-16 pb-36 overflow-y-auto scrollbar-thin">
