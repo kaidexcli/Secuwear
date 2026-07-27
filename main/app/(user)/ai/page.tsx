@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Mic, AudioLines, ChevronDown, ArrowUp, PhoneCall, Loader2, Sparkles } from 'lucide-react'
 import Sidebar from '@/components/dashboard/Sidebar'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface Message {
   id: string
@@ -92,18 +94,35 @@ export default function SurvivalAIPage() {
     }
   }
 
-  // Regex utility to detect hotline numbers in response and output a tap-to-call badge
+  // Parses AI response for Markdown formatting and injects Hotline buttons
   const renderMessageContent = (text: string) => {
     const phoneRegex = /(\b9-1-1\b|\b911\b|\b\d{3,4}[-\s]?\d{3,4}[-\s]?\d{3,4}\b|\(02\)\s?\d{4}[-\s]?\d{4}|\b09\d{9}\b)/g
     const matches = text.match(phoneRegex)
 
     return (
-      <div className="space-y-3">
-        <p className="whitespace-pre-wrap leading-relaxed">{text}</p>
+      <div className="space-y-4">
+        {/* ReactMarkdown cleanly renders lists, bold texts, and spacing inside a wrapper div */}
+        <div className="text-[#2D2B2A] text-[0.98rem] leading-relaxed">
+          <ReactMarkdown 
+            remarkPlugins={[remarkGfm]}
+            components={{
+              p: ({...props}) => <p className="mb-3 last:mb-0" {...props} />,
+              ul: ({...props}) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
+              ol: ({...props}) => <ol className="list-decimal pl-5 mb-3 space-y-1" {...props} />,
+              li: ({...props}) => <li className="pl-1" {...props} />,
+              strong: ({...props}) => <strong className="font-semibold text-slate-900" {...props} />,
+              h1: ({...props}) => <h1 className="text-xl font-bold mb-3 mt-4" {...props} />,
+              h2: ({...props}) => <h2 className="text-lg font-bold mb-2 mt-3" {...props} />,
+              h3: ({...props}) => <h3 className="text-md font-bold mb-2 mt-3" {...props} />,
+            }}
+          >
+            {text}
+          </ReactMarkdown>
+        </div>
         
-        {/* Dynamic Emergency Dial Badge if phone number found */}
+        {/* Dynamic Emergency Dial Badge rendering */}
         {matches && matches.length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200/60 mt-2">
             {Array.from(new Set(matches)).map((num, idx) => (
               <a
                 key={idx}
@@ -123,7 +142,6 @@ export default function SurvivalAIPage() {
   return (
     <div className="flex h-screen bg-[#FAF9F6] text-slate-800 font-sans overflow-hidden">
       
-      {/* Sidebar */}
       <Sidebar 
         isSidebarOpen={isSidebarOpen} 
         setIsSidebarOpen={setIsSidebarOpen} 
@@ -142,7 +160,7 @@ export default function SurvivalAIPage() {
         {/* Chat Feed / Greeting Area */}
         <div className="flex-1 w-full max-w-3xl flex flex-col px-4 pt-16 pb-36 overflow-y-auto scrollbar-thin">
           
-          {/* HERO GREETING (Only visible when no messages exist) */}
+          {/* HERO GREETING */}
           {messages.length === 0 && (
             <div className="flex-1 flex flex-col justify-center items-center my-auto">
               <motion.div 
@@ -188,8 +206,8 @@ export default function SurvivalAIPage() {
                     {/* Message Body */}
                     <div className={`max-w-[85%] ${
                       msg.role === 'user'
-                        ? 'bg-[#2D2B2A] text-white px-4 py-3 rounded-2xl rounded-tr-xs text-[0.98rem] shadow-xs'
-                        : 'text-[#2D2B2A] text-[1rem] py-1'
+                        ? 'bg-[#2D2B2A] text-white px-4 py-3 rounded-2xl rounded-tr-xs text-[0.98rem] shadow-sm'
+                        : 'text-[#2D2B2A] py-1'
                     }`}>
                       {msg.role === 'assistant' ? (
                         renderMessageContent(msg.content)
@@ -223,7 +241,7 @@ export default function SurvivalAIPage() {
           )}
         </div>
 
-        {/* Floating Input Area (Fixed to bottom center) */}
+        {/* Floating Input Area */}
         <div className="absolute bottom-6 w-full max-w-3xl px-4 bg-linear-to-t from-[#FAF9F6] via-[#FAF9F6] to-transparent pt-6">
           <div className="bg-white border border-[#E5E3D9] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-3 flex flex-col transition-shadow focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
             
@@ -237,15 +255,11 @@ export default function SurvivalAIPage() {
             />
 
             <div className="flex items-center justify-between mt-2">
-              {/* Left Attach Button */}
               <button className="p-2 text-[#A09E96] hover:bg-[#F2F0E9] rounded-xl transition-colors">
                 <Plus size={22} strokeWidth={2} />
               </button>
 
-              {/* Right Action Buttons */}
               <div className="flex items-center gap-2">
-                
-                {/* Model Selector Badge */}
                 <div className="flex items-center gap-1.5 text-xs text-orange-700 font-semibold px-2.5 py-1.5 bg-orange-50 border border-orange-200/60 rounded-lg cursor-pointer transition-colors mr-2">
                   <Sparkles size={14} className="text-orange-600" />
                   sw-llemon-2.7-7b <ChevronDown size={14} />
@@ -258,7 +272,6 @@ export default function SurvivalAIPage() {
                   <AudioLines size={20} />
                 </button>
                 
-                {/* Submit Button */}
                 <button 
                   onClick={handleSubmit}
                   disabled={isLoading || prompt.trim().length === 0}
