@@ -56,63 +56,32 @@ export default function SurvivalAIPage() {
     setIsLoading(true)
 
     try {
+      // Standard JSON fetch (matches your new non-streaming backend)
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage.content })
       })
 
-      if (!res.ok || !res.body) {
-        throw new Error("Stream connection failed")
-      }
+      const data = await res.json()
 
-      // Read the stream sent by your new route.ts
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let assistantText = ""
-      const assistantId = (Date.now() + 1).toString()
+      if (data.error) throw new Error(data.error)
 
-      // Add a blank placeholder message to the screen instantly
-      setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: "" }])
-      setIsLoading(false)
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.replace('data: ', '').trim()
-            if (dataStr === '[DONE]') continue
-            if (!dataStr) continue
-            
-            try {
-              const data = JSON.parse(dataStr)
-              const content = data.choices[0]?.delta?.content || ""
-              assistantText += content
-              
-              // Update the UI character by character
-              setMessages(prev => prev.map(msg => 
-                msg.id === assistantId ? { ...msg, content: assistantText } : msg
-              ))
-            } catch (e) {
-              console.error("Error parsing stream chunk", e)
-            }
-          }
-        }
-      }
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.response || data.error || "No response received."
+      }])
     } catch (error: any) {
       setMessages(prev => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `Connection error: Unable to connect to the SecuWear server. Details: ${error.message}`
+          content: `Connection error: ${error.message || "Failed to reach backend."}`
         }
       ])
+    } finally {
       setIsLoading(false)
     }
   }
