@@ -1,12 +1,17 @@
 "use client"
 
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Plus, Mic, AudioLines, ChevronDown, ArrowUp } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Plus, Mic, AudioLines, ChevronDown, ArrowUp, PhoneCall, Loader2, Sparkles } from 'lucide-react'
 import Sidebar from '@/components/dashboard/Sidebar'
 
+interface Message {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+}
+
 // Custom Minimalist "Auxilink" Logo 
-// Abstract 'A' connected to a central data node
 const AuxilinkLogo = ({ size = 42, className = "" }: { size?: number, className?: string }) => (
   <svg 
     width={size} 
@@ -16,16 +21,9 @@ const AuxilinkLogo = ({ size = 42, className = "" }: { size?: number, className?
     xmlns="http://www.w3.org/2000/svg" 
     className={className}
   >
-    {/* The 'A' / Auxiliary Peak */}
     <path d="M6 10L12 3L18 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    
-    {/* The Linking Node */}
     <circle cx="12" cy="15" r="4" stroke="currentColor" strokeWidth="2"/>
-    
-    {/* The Vertical Connection */}
     <path d="M12 10V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    
-    {/* The Network Base */}
     <path d="M4 15H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     <path d="M16 15H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
@@ -34,11 +32,98 @@ const AuxilinkLogo = ({ size = 42, className = "" }: { size?: number, className?
 export default function SurvivalAIPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [prompt, setPrompt] = useState("")
+  const [messages, setMessages] = useState<Message[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to latest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, isLoading])
+
+  const handleSubmit = async () => {
+    if (!prompt.trim() || isLoading) return
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: prompt.trim()
+    }
+
+    setMessages(prev => [...prev, userMessage])
+    setPrompt("")
+    setIsLoading(true)
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: userMessage.content })
+      })
+
+      const data = await res.json()
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.response || "No response received from Auxilink agent."
+      }
+
+      setMessages(prev => [...prev, assistantMessage])
+    } catch (error) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: "Connection error: Unable to connect to the SecuWear Auxilink server. Please dial 9-1-1 directly if in immediate danger."
+        }
+      ])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit()
+    }
+  }
+
+  // Regex utility to detect hotline numbers in response and output a tap-to-call badge
+  const renderMessageContent = (text: string) => {
+    const phoneRegex = /(\b9-1-1\b|\b911\b|\b\d{3,4}[-\s]?\d{3,4}[-\s]?\d{3,4}\b|\(02\)\s?\d{4}[-\s]?\d{4}|\b09\d{9}\b)/g
+    const matches = text.match(phoneRegex)
+
+    return (
+      <div className="space-y-3">
+        <p className="whitespace-pre-wrap leading-relaxed">{text}</p>
+        
+        {/* Dynamic Emergency Dial Badge if phone number found */}
+        {matches && matches.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {Array.from(new Set(matches)).map((num, idx) => (
+              <a
+                key={idx}
+                href={`tel:${num.replace(/[^0-9+]/g, '')}`}
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors shadow-sm"
+              >
+                <PhoneCall size={14} className="animate-pulse" />
+                <span>Call Hotline: {num}</span>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-screen bg-[#FAF9F6] text-slate-800 font-sans overflow-hidden">
       
-      {/* Sidebar - Map props omitted since they are only used on the Dashboard */}
+      {/* Sidebar */}
       <Sidebar 
         isSidebarOpen={isSidebarOpen} 
         setIsSidebarOpen={setIsSidebarOpen} 
@@ -47,39 +132,107 @@ export default function SurvivalAIPage() {
       <main className="flex-1 flex flex-col items-center relative h-full">
 
         {/* Top Right Controls */}
-        <div className="absolute top-4 right-8 flex gap-4 text-sm font-medium text-[#7D7B74]">
-           <button className="hover:text-orange-600 transition-colors">Emergency Offline Mode</button>
+        <div className="absolute top-4 right-8 flex gap-4 text-sm font-medium text-[#7D7B74] z-10">
+          <button className="hover:text-orange-600 transition-colors flex items-center gap-1.5 bg-white/80 backdrop-blur border border-[#E5E3D9] px-3 py-1.5 rounded-full shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Emergency Offline Mode
+          </button>
         </div>
 
-        {/* Center Greeting Area with Custom Logo */}
-        <div className="flex-1 w-full max-w-3xl flex flex-col justify-center px-4 pb-32">
-          <motion.div 
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            className="flex flex-col items-center text-center mb-8"
-          >
-            <div className="flex items-center justify-center gap-4 mb-2">
-              {/* Using the custom Auxilink logo with a smooth breathing animation */}
-              <div className="animate-pulse text-orange-600">
-                 <AuxilinkLogo size={46} />
-              </div>
-              <h1 className="text-[2.75rem] font-serif text-[#2D2B2A] tracking-tight">
-                SecuWear Auxilink Agent
-              </h1>
+        {/* Chat Feed / Greeting Area */}
+        <div className="flex-1 w-full max-w-3xl flex flex-col px-4 pt-16 pb-36 overflow-y-auto scrollbar-thin">
+          
+          {/* HERO GREETING (Only visible when no messages exist) */}
+          {messages.length === 0 && (
+            <div className="flex-1 flex flex-col justify-center items-center my-auto">
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+                className="flex flex-col items-center text-center"
+              >
+                <div className="flex items-center justify-center gap-4 mb-2">
+                  <div className="animate-pulse text-orange-600">
+                    <AuxilinkLogo size={46} />
+                  </div>
+                  <h1 className="text-[2.75rem] font-serif text-[#2D2B2A] tracking-tight">
+                    SecuWear Auxilink Agent
+                  </h1>
+                </div>
+                <p className="text-[#7D7B74] text-sm font-medium max-w-md mt-2">
+                  Fine-tuned on Philippine emergency response directories, disaster survival frameworks, and life-safety protocols.
+                </p>
+              </motion.div>
             </div>
-          </motion.div>
+          )}
+
+          {/* CONVERSATION THREAD */}
+          {messages.length > 0 && (
+            <div className="space-y-6 pt-4">
+              <AnimatePresence initial={false}>
+                {messages.map((msg) => (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {/* Assistant Avatar */}
+                    {msg.role === 'assistant' && (
+                      <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 border border-orange-200 mt-1">
+                        <AuxilinkLogo size={20} />
+                      </div>
+                    )}
+
+                    {/* Message Body */}
+                    <div className={`max-w-[85%] ${
+                      msg.role === 'user'
+                        ? 'bg-[#2D2B2A] text-white px-4 py-3 rounded-2xl rounded-tr-xs text-[0.98rem] shadow-xs'
+                        : 'text-[#2D2B2A] text-[1rem] py-1'
+                    }`}>
+                      {msg.role === 'assistant' ? (
+                        renderMessageContent(msg.content)
+                      ) : (
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              {/* Thinking/Loading State */}
+              {isLoading && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex gap-4 items-center text-[#A09E96]"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0 border border-orange-200">
+                    <AuxilinkLogo size={20} />
+                  </div>
+                  <div className="flex items-center gap-2 text-sm font-medium text-[#7D7B74]">
+                    <Loader2 size={16} className="animate-spin text-orange-600" />
+                    <span>Auxilink searching emergency directories...</span>
+                  </div>
+                </motion.div>
+              )}
+              
+              <div ref={messagesEndRef} />
+            </div>
+          )}
         </div>
 
-        {/* Input Area (Fixed to bottom center) */}
-        <div className="absolute bottom-12 w-full max-w-3xl px-4">
+        {/* Floating Input Area (Fixed to bottom center) */}
+        <div className="absolute bottom-6 w-full max-w-3xl px-4 bg-linear-to-t from-[#FAF9F6] via-[#FAF9F6] to-transparent pt-6">
           <div className="bg-white border border-[#E5E3D9] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-3 flex flex-col transition-shadow focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
             
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="How can I help you survive today?"
-              className="w-full bg-transparent resize-none outline-none text-[1.05rem] placeholder:text-[#A09E96] text-[#2D2B2A] min-h-15 p-2"
+              className="w-full bg-transparent resize-none outline-none text-[1.05rem] placeholder:text-[#A09E96] text-[#2D2B2A] min-h-12 max-h-36 p-2 scrollbar-none"
               rows={2}
             />
 
@@ -92,9 +245,10 @@ export default function SurvivalAIPage() {
               {/* Right Action Buttons */}
               <div className="flex items-center gap-2">
                 
-                {/* Model Selector */}
-                <div className="flex items-center gap-1 text-sm text-[#7D7B74] font-medium px-2 py-1.5 hover:bg-[#F2F0E9] rounded-lg cursor-pointer transition-colors mr-2">
-                  Rescue Model <ChevronDown size={16} />
+                {/* Model Selector Badge */}
+                <div className="flex items-center gap-1.5 text-xs text-orange-700 font-semibold px-2.5 py-1.5 bg-orange-50 border border-orange-200/60 rounded-lg cursor-pointer transition-colors mr-2">
+                  <Sparkles size={14} className="text-orange-600" />
+                  sw-llemon-2.7-7b <ChevronDown size={14} />
                 </div>
                 
                 <button className="p-2 text-[#A09E96] hover:bg-[#F2F0E9] rounded-xl transition-colors">
@@ -104,10 +258,14 @@ export default function SurvivalAIPage() {
                   <AudioLines size={20} />
                 </button>
                 
-                {/* Submit Button (Changes color when typing) */}
+                {/* Submit Button */}
                 <button 
-                  className={`p-2 rounded-xl transition-colors ml-1 ${
-                    prompt.length > 0 ? 'bg-orange-600 text-white shadow-sm' : 'bg-[#E5E3D9] text-[#A09E96]'
+                  onClick={handleSubmit}
+                  disabled={isLoading || prompt.trim().length === 0}
+                  className={`p-2 rounded-xl transition-all ml-1 ${
+                    prompt.trim().length > 0 && !isLoading
+                      ? 'bg-orange-600 text-white shadow-sm hover:bg-orange-700 cursor-pointer' 
+                      : 'bg-[#E5E3D9] text-[#A09E96] cursor-not-allowed'
                   }`}
                 >
                   <ArrowUp size={20} strokeWidth={2.5} />
@@ -117,7 +275,7 @@ export default function SurvivalAIPage() {
 
           </div>
           
-          <p className="text-center text-xs text-[#A09E96] mt-4 font-medium">
+          <p className="text-center text-xs text-[#A09E96] mt-3 font-medium pb-2">
             Auxilink AI can make mistakes. Always verify critical medical and disaster survival protocols.
           </p>
         </div>
