@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 
+// 1. VERCEL OVERRIDE: Force Vercel to wait up to 60 seconds instead of 10s
+export const maxDuration = 60; 
+
 export async function POST(req: Request) {
   try {
     const { prompt } = await req.json()
@@ -14,7 +17,7 @@ export async function POST(req: Request) {
     const hfToken = process.env.HF_TOKEN 
 
     if (!hfToken) {
-      return NextResponse.json({ response: "Server Configuration Error: HF_TOKEN environment variable is missing." })
+      return NextResponse.json({ response: "Server Configuration Error: HF_TOKEN environment variable is missing in Vercel." })
     }
 
     const response = await fetch("https://api-inference.huggingface.co/models/sojukai/sw-llemon-2.7-7b", {
@@ -33,32 +36,36 @@ export async function POST(req: Request) {
       }),
     })
 
-    const result = await response.json()
+    // 2. SAFE PARSING: Read as text first to prevent JSON crashes on 504/503 errors
+    const textResponse = await response.text()
+    
+    let result;
+    try {
+      result = JSON.parse(textResponse)
+    } catch (parseError) {
+      // If Hugging Face sends HTML instead of JSON, we catch it here
+      return NextResponse.json({ response: `Hugging Face API Error. Status: ${response.status}. The server is likely overloaded.` })
+    }
 
-    // 1. Check if Hugging Face returned an error object (like a Cold Start)
     if (!response.ok || result.error) {
-      // If the model is sleeping, tell the user exactly how long to wait
       if (result.error && result.error.toLowerCase().includes('loading')) {
         const waitTime = Math.round(result.estimated_time || 20)
-        return NextResponse.json({ response: `*System Note: The SecuWear AI is currently booting up from sleep mode on the server. Please wait about ${waitTime} seconds and ask your question again.*` })
+        return NextResponse.json({ response: `*System Note: The SecuWear AI is currently booting up from sleep mode on the server. Please wait about ${waitTime} seconds and try again.*` })
       }
       return NextResponse.json({ response: `API Error: ${result.error || 'Failed to connect to Hugging Face.'}` })
     }
 
-    // 2. Check for a successful text generation array
     if (Array.isArray(result) && result.length > 0) {
       const generatedText = result[0].generated_text || result[0].text || ""
-      
-      // Clean out the prompt tags just in case return_full_text malfunctions
       const cleanText = generatedText.replace(formattedPrompt, "").trim()
       return NextResponse.json({ response: cleanText })
     }
 
-    // 3. Absolute fallback
     return NextResponse.json({ response: "Received an empty or unreadable response from the model." })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Auxilink API Error:", error)
-    return NextResponse.json({ response: "Fatal Error: Failed to establish a backend connection." })
+    // 3. DEBUG EXPOSURE: Print the exact system error to the UI so we can see what went wrong
+    return NextResponse.json({ response: `Backend Error: ${error.message || "Unknown execution failure."}` })
   }
 }
