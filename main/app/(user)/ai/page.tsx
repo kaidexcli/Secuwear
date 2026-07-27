@@ -13,7 +13,6 @@ interface Message {
   content: string
 }
 
-// Custom Minimalist "Auxilink" Logo 
 const AuxilinkLogo = ({ size = 42, className = "" }: { size?: number, className?: string }) => (
   <svg 
     width={size} 
@@ -39,7 +38,6 @@ export default function SurvivalAIPage() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isLoading])
@@ -61,7 +59,7 @@ export default function SurvivalAIPage() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: userMessage.content })
+        body: JSON.stringify({ message: userMessage.content }) // Matches your new backend mapping
       })
 
       const data = await res.json()
@@ -69,7 +67,7 @@ export default function SurvivalAIPage() {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.response || "No response received from Auxilink agent."
+        content: data.response || data.error || "No response received from Auxilink agent."
       }
 
       setMessages(prev => [...prev, assistantMessage])
@@ -94,14 +92,12 @@ export default function SurvivalAIPage() {
     }
   }
 
-  // Parses AI response for Markdown formatting and injects Hotline buttons
   const renderMessageContent = (text: string) => {
     const phoneRegex = /(\b9-1-1\b|\b911\b|\b\d{3,4}[-\s]?\d{3,4}[-\s]?\d{3,4}\b|\(02\)\s?\d{4}[-\s]?\d{4}|\b09\d{9}\b)/g
     const matches = text.match(phoneRegex)
 
     return (
       <div className="space-y-4">
-        {/* ReactMarkdown cleanly renders lists, bold texts, and spacing inside a wrapper div */}
         <div className="text-[#2D2B2A] text-[0.98rem] leading-relaxed">
           <ReactMarkdown 
             remarkPlugins={[remarkGfm]}
@@ -120,7 +116,6 @@ export default function SurvivalAIPage() {
           </ReactMarkdown>
         </div>
         
-        {/* Dynamic Emergency Dial Badge rendering */}
         {matches && matches.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200/60 mt-2">
             {Array.from(new Set(matches)).map((num, idx) => (
@@ -148,11 +143,8 @@ export default function SurvivalAIPage() {
       />
 
       <main className="flex-1 flex flex-col items-center relative h-full">
-
-        {/* Chat Feed / Greeting Area */}
         <div className="flex-1 w-full max-w-3xl flex flex-col px-4 pt-16 pb-36 overflow-y-auto scrollbar-thin">
           
-          {/* HERO GREETING */}
           {messages.length === 0 && (
             <div className="flex-1 flex flex-col justify-center items-center my-auto">
               <motion.div 
@@ -176,7 +168,6 @@ export default function SurvivalAIPage() {
             </div>
           )}
 
-          {/* CONVERSATION THREAD */}
           {messages.length > 0 && (
             <div className="space-y-6 pt-4">
               <AnimatePresence initial={false}>
@@ -188,14 +179,12 @@ export default function SurvivalAIPage() {
                     transition={{ duration: 0.3 }}
                     className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    {/* Assistant Avatar */}
                     {msg.role === 'assistant' && (
                       <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 border border-orange-200 mt-1">
                         <AuxilinkLogo size={20} />
                       </div>
                     )}
 
-                    {/* Message Body */}
                     <div className={`max-w-[85%] ${
                       msg.role === 'user'
                         ? 'bg-[#2D2B2A] text-white px-4 py-3 rounded-2xl rounded-tr-xs text-[0.98rem] shadow-sm'
@@ -211,7 +200,6 @@ export default function SurvivalAIPage() {
                 ))}
               </AnimatePresence>
 
-              {/* Thinking/Loading State */}
               {isLoading && (
                 <motion.div 
                   initial={{ opacity: 0 }}
@@ -223,7 +211,7 @@ export default function SurvivalAIPage() {
                   </div>
                   <div className="flex items-center gap-2 text-sm font-medium text-[#7D7B74]">
                     <Loader2 size={16} className="animate-spin text-orange-600" />
-                    <span>Auxilink searching emergency directories...</span>
+                    <span>Auxilink connecting to emergency database...</span>
                   </div>
                 </motion.div>
               )}
@@ -233,8 +221,7 @@ export default function SurvivalAIPage() {
           )}
         </div>
 
-        {/* Floating Input Area */}
-        <div className="absolute bottom-6 w-full max-w-3xl px-4 bg-linear-to-t from-[#FAF9F6] via-[#FAF9F6] to-transparent pt-6">
+        <div className="absolute bottom-6 w-full max-w-3xl px-4 bg-gradient-to-t from-[#FAF9F6] via-[#FAF9F6] to-transparent pt-6">
           <div className="bg-white border border-[#E5E3D9] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-3 flex flex-col transition-shadow focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
             
             <textarea
