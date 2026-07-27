@@ -56,7 +56,6 @@ export default function SurvivalAIPage() {
     setIsLoading(true)
 
     try {
-      // Standard JSON fetch (matches your new non-streaming backend)
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -70,7 +69,7 @@ export default function SurvivalAIPage() {
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.response || data.error || "No response received."
+        content: data.response || "No response received from Auxilink agent."
       }])
     } catch (error: any) {
       setMessages(prev => [
@@ -78,7 +77,7 @@ export default function SurvivalAIPage() {
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `Connection error: ${error.message || "Failed to reach backend."}`
+          content: `Connection error: ${error.message || "Unable to reach the server."}`
         }
       ])
     } finally {
@@ -94,6 +93,7 @@ export default function SurvivalAIPage() {
   }
 
   const renderMessageContent = (text: string) => {
+    // Regex matches common PH hotline formats (911, 09xxxxxxxxx, 8-digit landlines)
     const phoneRegex = /(\b9-1-1\b|\b911\b|\b\d{3,4}[-\s]?\d{3,4}[-\s]?\d{3,4}\b|\(02\)\s?\d{4}[-\s]?\d{4}|\b09\d{9}\b)/g
     const matches = text.match(phoneRegex)
 
@@ -242,7 +242,7 @@ export default function SurvivalAIPage() {
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 text-xs text-orange-700 font-semibold px-2.5 py-1.5 bg-orange-50 border border-orange-200/60 rounded-lg cursor-pointer transition-colors mr-2">
                   <Sparkles size={14} className="text-orange-600" />
-                  sw-llemon-2.7-7b <ChevronDown size={14} />
+                  Mistral-7B-Instruct <ChevronDown size={14} />
                 </div>
                 
                 <button className="p-2 text-[#A09E96] hover:bg-[#F2F0E9] rounded-xl transition-colors">
