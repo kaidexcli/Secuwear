@@ -201,7 +201,7 @@ export default function SurvivalAIPage() {
                   </h1>
                 </div>
                 <p className="text-[#7D7B74] text-sm font-medium max-w-md mt-2">
-                  Powered by Kimi-K3. Integrated with Philippine emergency response frameworks and life-safety protocols.
+                  Powered by Kimi-K3 and LLeMon 2.7 combined. Integrated with Philippine emergency response frameworks and life-safety protocols.
                 </p>
               </motion.div>
             </div>
@@ -280,7 +280,7 @@ export default function SurvivalAIPage() {
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 text-xs text-orange-700 font-semibold px-2.5 py-1.5 bg-orange-50 border border-orange-200/60 rounded-lg cursor-pointer transition-colors mr-2">
                   <Sparkles size={14} className="text-orange-600" />
-                  Kimi-K3 <ChevronDown size={14} />
+                  K3-LLeMon <ChevronDown size={14} />
                 </div>
                 
                 <button className="p-2 text-[#A09E96] hover:bg-[#F2F0E9] rounded-xl transition-colors">
