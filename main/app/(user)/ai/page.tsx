@@ -48,6 +48,10 @@ export default function SurvivalAIPage() {
     setPrompt("")
     setIsLoading(true)
 
+    // Create an empty assistant message to populate as we stream
+    const assistantId = (Date.now() + 1).toString()
+    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: "" }])
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -55,22 +59,29 @@ export default function SurvivalAIPage() {
         body: JSON.stringify({ message: userMessage.content })
       })
 
-      const data = await res.json()
+      if (!res.body) throw new Error("No response body received from server.")
 
-      if (data.error) {
-        throw new Error(data.error)
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let assistantContent = ""
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        
+        const chunk = decoder.decode(value, { stream: true })
+        assistantContent += chunk
+        
+        // Update the assistant message in the state as chunks arrive
+        setMessages(prev => prev.map(msg => 
+          msg.id === assistantId ? { ...msg, content: assistantContent } : msg
+        ))
       }
-
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.response || "No response received."
-      }])
     } catch (error: any) {
       setMessages(prev => [
-        ...prev,
+        ...prev.filter(msg => msg.id !== assistantId), // Remove empty placeholder
         {
-          id: (Date.now() + 1).toString(),
+          id: assistantId,
           role: 'assistant',
           content: `Connection error: ${error.message || "Failed to reach backend."}`
         }
@@ -157,7 +168,7 @@ export default function SurvivalAIPage() {
                   </h1>
                 </div>
                 <p className="text-[#7D7B74] text-sm font-medium max-w-md mt-2">
-                  Powered by Mistral-7B. Integrated with Philippine emergency response frameworks and life-safety protocols.
+                  Powered by Zephyr-7B. Integrated with Philippine emergency response frameworks and life-safety protocols.
                 </p>
               </motion.div>
             </div>
@@ -236,7 +247,7 @@ export default function SurvivalAIPage() {
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 text-xs text-orange-700 font-semibold px-2.5 py-1.5 bg-orange-50 border border-orange-200/60 rounded-lg cursor-pointer transition-colors mr-2">
                   <Sparkles size={14} className="text-orange-600" />
-                  Mistral-7B-Instruct <ChevronDown size={14} />
+                  Zephyr-7B <ChevronDown size={14} />
                 </div>
                 
                 <button className="p-2 text-[#A09E96] hover:bg-[#F2F0E9] rounded-xl transition-colors">
