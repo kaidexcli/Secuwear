@@ -1,49 +1,74 @@
-export const maxDuration = 60;
+import { NextResponse } from 'next/server'
+
+// 1. VERCEL OVERRIDE: Force Vercel to wait up to 60 seconds instead of 10s
+export const maxDuration = 60; 
 
 export async function POST(req: Request) {
-  console.log("API Route /api/chat hit"); // Will show up in Vercel Logs
-
   try {
-    const body = await req.json();
-    console.log("Request received:", body);
+    const { prompt } = await req.json()
 
-    const { message } = body;
-    const hfToken = process.env.HF_TOKEN;
+    if (!prompt) {
+      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 })
+    }
+
+    const systemPrompt = "You are SecuWear Auxilink, an expert AI in disaster survival and emergency response in the Philippines."
+    const formattedPrompt = `<|im_start|>system\n${systemPrompt}<|im_end|>\n<|im_start|>user\n${prompt}<|im_end|>\n<|im_start|>assistant\n`
+
+    const hfToken = process.env.HF_TOKEN 
 
     if (!hfToken) {
-      console.error("HF_TOKEN is undefined!");
-      return Response.json({ error: "HF_TOKEN missing" }, { status: 500 });
+      return NextResponse.json({ response: "Server Configuration Error: HF_TOKEN environment variable is missing in Vercel." })
     }
 
-    console.log("Attempting fetch to Hugging Face...");
-
-    const response = await fetch("https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3", {
-      method: "POST",
+    const response = await fetch("https://api-inference.huggingface.co/models/moonshotai/Kimi-K3", {
       headers: {
+        Authorization: `Bearer ${hfToken}`,
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${hfToken.trim()}`
       },
+      method: "POST",
+      cache: "no-store", // Prevents Next.js from caching the request and throwing 'fetch failed'
       body: JSON.stringify({
-        inputs: `<s>[INST] Expert Philippine survivalist. Question: ${message} [/INST]`,
-        parameters: { max_new_tokens: 250 },
-        options: { wait_for_model: true }
+        inputs: formattedPrompt,
+        parameters: {
+          max_new_tokens: 200,
+          temperature: 0.3,
+          return_full_text: false
+        },
+        options: {
+          wait_for_model: false // Forces Hugging Face to reply instantly if asleep, preventing Vercel network timeouts
+        }
       }),
-    });
+    })
 
-    console.log("Hugging Face response status:", response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Hugging Face error body:", errorText);
-      return Response.json({ error: `HF API Error: ${response.status}` }, { status: response.status });
+    // SAFE PARSING: Read as text first to prevent JSON crashes on 504/503 HTML error pages
+    const textResponse = await response.text()
+    
+    let result;
+    try {
+      result = JSON.parse(textResponse)
+    } catch (parseError) {
+      return NextResponse.json({ response: `Hugging Face API Error. Status: ${response.status}. The server might be overloaded.` })
     }
 
-    const data = await response.json();
-    console.log("Success! Returning data.");
-    return Response.json({ response: data[0]?.generated_text || "No output" });
+    if (!response.ok || result.error) {
+      if (result.error && result.error.toLowerCase().includes('loading')) {
+        const waitTime = Math.round(result.estimated_time || 20)
+        return NextResponse.json({ response: `*System Note: The SecuWear AI is currently booting up from sleep mode on the server. Please wait about ${waitTime} seconds and try again.*` })
+      }
+      return NextResponse.json({ response: `API Error: ${result.error || 'Failed to connect to Hugging Face.'}` })
+    }
+
+    if (Array.isArray(result) && result.length > 0) {
+      const generatedText = result[0].generated_text || result[0].text || ""
+      const cleanText = generatedText.replace(formattedPrompt, "").trim()
+      return NextResponse.json({ response: cleanText })
+    }
+
+    return NextResponse.json({ response: "Received an empty or unreadable response from the model." })
 
   } catch (error: any) {
-    console.error("CRITICAL API ERROR:", error.message);
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error("Auxilink API Error:", error)
+    // DEBUG EXPOSURE: Print the exact system error to the UI
+    return NextResponse.json({ response: `Backend Error: ${error.message || "Unknown execution failure."}` })
   }
 }
