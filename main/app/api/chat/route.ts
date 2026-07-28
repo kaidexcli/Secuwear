@@ -1,69 +1,40 @@
-import { NextResponse } from 'next/server';
-
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
-
 export async function POST(req: Request) {
   try {
     const { message } = await req.json();
-    const hfToken = (process.env.HF_TOKEN || '').trim();
 
-    if (!hfToken) {
-      return NextResponse.json({ error: "HF_TOKEN missing in server configuration" }, { status: 500 });
-    }
-
-    // Switched to Llama-3-8B-Instruct - extremely stable on HF's free tier
-    const MODEL_ID = "deepseek-ai/Deepseek-R1";
-
-    const response = await fetch(`https://api-inference.huggingface.co/models/${MODEL_ID}/v1/chat/completions`, {
+    const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${hfToken}`,
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.HF_TOKEN}`
       },
       body: JSON.stringify({
-        model: MODEL_ID,
-        messages: [
-          {
-            role: "system",
-            content: "You are SecuWear Auxilink, an expert in Philippine disaster survival. Provide hotlines like 911, PNP (117), BFP (02-8426-0219), NDRRMC (02-8911-5061), Red Cross (143), and DOH (1555)."
-          },
-          {
-            role: "user",
-            content: message
-          }
-        ],
-        max_tokens: 512, // Lowered slightly to ensure HF free tier accepts it
-        temperature: 0.3,
-        stream: true, 
+        model: "moonshotai/Kimi-K3", 
+        messages: [{ role: "user", content: message }],
+        max_tokens: 4096,
+        temperature: 0.6,     
+        stream: true           
       }),
-      cache: 'no-store' 
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      try {
-        const parsedError = JSON.parse(errorText);
-        return NextResponse.json(parsedError, { status: response.status });
-      } catch {
-        return NextResponse.json({ error: `HF API Error: ${errorText}` }, { status: response.status });
-      }
+       // Read the actual error from Hugging Face so we aren't guessing
+       const errorData = await response.text(); 
+       console.error("Hugging Face API Error:", response.status, errorData);
+       
+       return Response.json(
+         { error: "Failed to fetch from HF", details: errorData }, 
+         { status: response.status }
+       );
     }
 
+    // Stream the raw bytes directly back to the frontend
     return new Response(response.body, {
-      headers: { 
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      }
+      headers: { "Content-Type": "text/event-stream" }
     });
 
-  } catch (error: any) {
-    console.error("Critical Backend Error:", error.message);
-    const errorMessage = error.message === 'fetch failed' 
-      ? 'Connection dropped: The AI model is taking too long to wake up. Please try again in 30 seconds.' 
-      : error.message;
-
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  } catch (error) {
+    console.error("Server Error:", error);
+    return Response.json({ error: "AI Server unreachable" }, { status: 500 });
   }
 }
