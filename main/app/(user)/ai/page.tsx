@@ -48,7 +48,6 @@ export default function SurvivalAIPage() {
     setPrompt("")
     setIsLoading(true)
 
-    // Create an empty assistant message to populate as we stream
     const assistantId = (Date.now() + 1).toString()
     setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: "" }])
 
@@ -59,7 +58,13 @@ export default function SurvivalAIPage() {
         body: JSON.stringify({ message: userMessage.content })
       })
 
-      if (!res.body) throw new Error("No response body received from server.")
+      // NEW: Check if the backend sent an error code
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Server returned an error.");
+      }
+
+      if (!res.body) throw new Error("No response body received.")
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -72,18 +77,18 @@ export default function SurvivalAIPage() {
         const chunk = decoder.decode(value, { stream: true })
         assistantContent += chunk
         
-        // Update the assistant message in the state as chunks arrive
         setMessages(prev => prev.map(msg => 
           msg.id === assistantId ? { ...msg, content: assistantContent } : msg
         ))
       }
     } catch (error: any) {
       setMessages(prev => [
-        ...prev.filter(msg => msg.id !== assistantId), // Remove empty placeholder
+        ...prev.filter(msg => msg.id !== assistantId),
         {
           id: assistantId,
           role: 'assistant',
-          content: `Connection error: ${error.message || "Failed to reach backend."}`
+          // This will now show the actual error if the backend crashes
+          content: `Backend Error: ${error.message || "Unknown error occurred."}`
         }
       ])
     } finally {
