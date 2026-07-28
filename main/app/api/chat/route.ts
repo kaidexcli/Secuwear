@@ -27,20 +27,25 @@ export async function POST(req: Request) {
     - DOH: 1555
     Always prioritize safety, give concise instructions, and provide these specific hotline numbers when a user is in distress.`;
 
-    // CRITICAL FIX: Switched to Zephyr-7B. It is significantly more stable on the free API than Mistral v0.3.
-    const response = await hf.chatCompletion({
+    // Zephyr-specific prompt formatting to bypass the broken chat endpoint
+    const formattedPrompt = `<|system|>\n${systemPrompt}</s>\n<|user|>\n${message}</s>\n<|assistant|>\n`;
+
+    // CRITICAL: Using textGeneration with Zephyr bypasses the broken third-party HTTP providers
+    const response = await hf.textGeneration({
       model: 'HuggingFaceH4/zephyr-7b-beta',
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: message }
-      ],
-      max_tokens: 300,
-      temperature: 0.3,
+      inputs: formattedPrompt,
+      parameters: {
+        max_new_tokens: 300,
+        temperature: 0.3,
+        return_full_text: false
+      }
     });
 
-    const cleanText = response.choices[0]?.message?.content?.trim() || "No response generated.";
+    // Clean the output
+    const rawText = response.generated_text || "";
+    const cleanText = rawText.replace(formattedPrompt, "").trim();
     
-    return NextResponse.json({ response: cleanText });
+    return NextResponse.json({ response: cleanText || "No response generated." });
 
   } catch (error: any) {
     console.error("SDK API Error:", error);
