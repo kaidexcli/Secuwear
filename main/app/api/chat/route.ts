@@ -1,31 +1,23 @@
-// CRITICAL FIX: The Edge runtime bypasses the standard 10s Serverless timeout
-export const runtime = 'edge';
+import { NextResponse } from 'next/server';
+
+export const maxDuration = 60; 
 
 export async function POST(req: Request) {
   try {
-    const { message } = await req.json();
+    const body = await req.json();
+    const message = body.message;
 
     if (!message) {
-      return Response.json({ error: 'Message payload is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Message payload is required' }, { status: 400 });
     }
 
     const hfToken = process.env.HF_TOKEN?.trim();
 
     if (!hfToken) {
-      return Response.json({ error: "Server Error: HF_TOKEN is missing." }, { status: 500 });
+      return NextResponse.json({ error: "Configuration Error: HF_TOKEN is missing." }, { status: 500 });
     }
 
-    const systemPrompt = `You are SecuWear Auxilink, an expert in Philippine disaster survival and emergency response. 
-    You have immediate access to these Philippine Emergency Hotlines:
-    - National Emergency: 911
-    - PNP: 117 / (02) 8722-0650
-    - BFP: (02) 8426-0219
-    - NDRRMC: (02) 8911-5061
-    - Red Cross: 143
-    - DOH: 1555
-    Always prioritize safety, give concise instructions, and provide these specific hotline numbers when a user is in distress.`;
-
-    // Using the official OpenAI-compatible endpoint for Mistral which supports true streaming
+    // THE FETCH: No system prompt, no persona, just the user's raw message
     const response = await fetch("https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -35,20 +27,26 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         model: "mistralai/Mistral-7B-Instruct-v0.3",
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: message }
+          { role: "user", content: message } // Only the user message is sent
         ],
-        max_tokens: 300,
+        max_tokens: 400,
         temperature: 0.3,
-        stream: true // Streams chunks to keep Vercel alive
+        stream: true 
       }),
     });
 
     if (!response.ok) {
-       return Response.json({ error: `Hugging Face Error: ${response.statusText}` }, { status: response.status });
+       const errText = await response.text();
+       
+       if (errText.toLowerCase().includes("loading") || response.status === 503) {
+           return NextResponse.json({
+               error: "The AI is booting up. Please wait 20 seconds and try again."
+           }, { status: 503 });
+       }
+       
+       return NextResponse.json({ error: `API Error (${response.status}): ${errText}` }, { status: response.status });
     }
 
-    // Stream the raw bytes directly back to the frontend
     return new Response(response.body, {
       headers: {
         "Content-Type": "text/event-stream",
@@ -59,6 +57,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("API Error:", error);
-    return Response.json({ error: `Backend Error: ${error.message}` }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Unknown server execution failure" }, { status: 500 });
   }
 }
