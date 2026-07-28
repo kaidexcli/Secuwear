@@ -17,15 +17,23 @@ export async function POST(req: Request) {
     const result = await streamText({
       model: huggingface('HuggingFaceH4/zephyr-7b-beta'),
       messages: [
-        { role: 'system', content: 'You are an emergency response expert for the Philippines. Provide hotlines like 911, PNP (117), BFP (02-8426-0219), NDRRMC (02-8911-5061), Red Cross (143), and DOH (1555) when asked.' },
+        { 
+          role: 'system', 
+          content: 'You are SecuWear Auxilink, an expert in Philippine disaster survival. Provide hotlines like 911, PNP (117), BFP (02-8426-0219), NDRRMC (02-8911-5061), Red Cross (143), and DOH (1555) when asked.' 
+        },
         { role: 'user', content: message }
       ],
+      // CRITICAL CONFIGURATION ADDED
+      temperature: 0.3,
+      maxTokens: 500,
+      // Some providers require these to stabilize the inference session
+      topP: 0.95,
+      frequencyPenalty: 0.5,
     });
 
     return result.toTextStreamResponse();
 
   } catch (error: any) {
-    // This will catch the error and send it to the frontend
     console.error("Backend Error:", error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
