@@ -28,27 +28,27 @@ export async function POST(req: Request) {
     - DOH: 1555
     Always prioritize safety, give concise instructions, and provide these specific hotline numbers when a user is in distress.`;
 
-    const formattedPrompt = `<s>[INST] ${systemPrompt}\n\nUser Question: ${message} [/INST]`;
-
-    // Use the SDK for text generation instead of raw fetch
-    const response = await hf.textGeneration({
+    // CRITICAL FIX: Using chatCompletion instead of textGeneration
+    const response = await hf.chatCompletion({
       model: 'mistralai/Mistral-7B-Instruct-v0.3',
-      inputs: formattedPrompt,
-      parameters: {
-        max_new_tokens: 300,
-        temperature: 0.3,
-        return_full_text: false
-      }
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: message }
+      ],
+      max_tokens: 300,
+      temperature: 0.3,
     });
 
-    const cleanText = response.generated_text.trim();
+    // Extract the text from the chat completion response structure
+    const cleanText = response.choices[0]?.message?.content?.trim() || "No response generated.";
+    
     return NextResponse.json({ response: cleanText });
 
   } catch (error: any) {
     console.error("SDK API Error:", error);
 
-    // Gracefully handle Hugging Face sleep mode without crashing the UI
-    const errMessage = error.message.toLowerCase();
+    // Gracefully handle Hugging Face sleep mode
+    const errMessage = error.message?.toLowerCase() || "";
     if (errMessage.includes('loading') || errMessage.includes('timeout') || errMessage.includes('503')) {
       return NextResponse.json({ 
         response: "*System Note: The SecuWear AI is currently booting up from sleep mode on the server. Please wait about 15 seconds and try again.*" 
