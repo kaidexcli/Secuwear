@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
     // CRITICAL: Using textGeneration with Zephyr bypasses the broken third-party HTTP providers
     const response = await hf.textGeneration({
-      model: 'HuggingFaceH4/zephyr-7b-beta',
+      model: 'moonshotai/Kimi-K3',
       inputs: formattedPrompt,
       parameters: {
         max_new_tokens: 300,
