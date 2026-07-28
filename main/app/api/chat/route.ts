@@ -15,7 +15,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Configuration Error: HF_TOKEN is missing." }, { status: 500 });
     }
 
-    // Initialize the official Hugging Face client
     const hf = new HfInference(hfToken);
 
     const systemPrompt = `You are SecuWear Auxilink, an expert in Philippine disaster survival and emergency response. 
@@ -28,9 +27,9 @@ export async function POST(req: Request) {
     - DOH: 1555
     Always prioritize safety, give concise instructions, and provide these specific hotline numbers when a user is in distress.`;
 
-    // CRITICAL FIX: Using chatCompletion instead of textGeneration
+    // CRITICAL FIX: Switched to Zephyr-7B. It is significantly more stable on the free API than Mistral v0.3.
     const response = await hf.chatCompletion({
-      model: 'mistralai/Mistral-7B-Instruct-v0.3',
+      model: 'HuggingFaceH4/zephyr-7b-beta',
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: message }
@@ -39,7 +38,6 @@ export async function POST(req: Request) {
       temperature: 0.3,
     });
 
-    // Extract the text from the chat completion response structure
     const cleanText = response.choices[0]?.message?.content?.trim() || "No response generated.";
     
     return NextResponse.json({ response: cleanText });
@@ -47,7 +45,6 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("SDK API Error:", error);
 
-    // Gracefully handle Hugging Face sleep mode
     const errMessage = error.message?.toLowerCase() || "";
     if (errMessage.includes('loading') || errMessage.includes('timeout') || errMessage.includes('503')) {
       return NextResponse.json({ 
