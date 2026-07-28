@@ -1,14 +1,18 @@
+import { HfInference } from '@huggingface/inference';
 import { NextResponse } from 'next/server'
 
-// 1. VERCEL OVERRIDE: Force Vercel to wait up to 60 seconds instead of 10s
+// VERCEL OVERRIDE: Force Vercel to wait up to 60 seconds instead of 10s
 export const maxDuration = 60; 
 
 export async function POST(req: Request) {
   try {
-    const { prompt } = await req.json()
+    const body = await req.json()
+    
+    // CRITICAL FIX: Extract either 'message' (from your current frontend) or 'prompt'
+    const prompt = body.message || body.prompt;
 
     if (!prompt) {
-      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 })
+      return NextResponse.json({ error: 'Prompt or message is required' }, { status: 400 })
     }
 
     const systemPrompt = "You are SecuWear Auxilink, an expert AI in disaster survival and emergency response in the Philippines."
@@ -26,7 +30,7 @@ export async function POST(req: Request) {
         "Content-Type": "application/json",
       },
       method: "POST",
-      cache: "no-store", // Prevents Next.js from caching the request and throwing 'fetch failed'
+      cache: "no-store",
       body: JSON.stringify({
         inputs: formattedPrompt,
         parameters: {
@@ -35,12 +39,11 @@ export async function POST(req: Request) {
           return_full_text: false
         },
         options: {
-          wait_for_model: false // Forces Hugging Face to reply instantly if asleep, preventing Vercel network timeouts
+          wait_for_model: false 
         }
       }),
     })
 
-    // SAFE PARSING: Read as text first to prevent JSON crashes on 504/503 HTML error pages
     const textResponse = await response.text()
     
     let result;
@@ -68,7 +71,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("Auxilink API Error:", error)
-    // DEBUG EXPOSURE: Print the exact system error to the UI
     return NextResponse.json({ response: `Backend Error: ${error.message || "Unknown execution failure."}` })
   }
 }
