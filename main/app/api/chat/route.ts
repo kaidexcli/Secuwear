@@ -17,46 +17,75 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Configuration Error: HF_TOKEN is missing." }, { status: 500 });
     }
 
-    // THE FETCH: No system prompt, no persona, just the user's raw message
-    const response = await fetch("https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${hfToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "mistralai/Mistral-7B-Instruct-v0.3",
-        messages: [
-          { role: "user", content: message } // Only the user message is sent
-        ],
-        max_tokens: 400,
-        temperature: 0.3,
-        stream: true 
-      }),
-    });
+    const systemPrompt = `You are SecuWear Auxilink, an expert in Philippine disaster survival and emergency response. 
+    You have immediate access to these Philippine Emergency Hotlines:
+    - National Emergency: 911
+    - PNP: 117 / (02) 8722-0650
+    - BFP: (02) 8426-0219
+    - NDRRMC: (02) 8911-5061
+    - Red Cross: 143
+    - DOH: 1555
+    Always prioritize safety, give concise instructions, and provide these specific hotline numbers when a user is in distress.`;
 
-    if (!response.ok) {
-       const errText = await response.text();
-       
-       if (errText.toLowerCase().includes("loading") || response.status === 503) {
-           return NextResponse.json({
-               error: "The AI is booting up. Please wait 20 seconds and try again."
-           }, { status: 503 });
-       }
-       
-       return NextResponse.json({ error: `API Error (${response.status}): ${errText}` }, { status: response.status });
+    const formattedPrompt = `<s>[INST] ${systemPrompt}\n\nUser Question: ${message} [/INST]`;
+
+    // CRITICAL: We create an 8-second timer to beat Vercel's 10-second kill switch
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); 
+
+    try {
+      const response = await fetch("https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${hfToken}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        signal: controller.signal, // Attach the timer to the fetch
+        body: JSON.stringify({
+          inputs: formattedPrompt,
+          parameters: {
+            max_new_tokens: 300,
+            temperature: 0.3,
+            return_full_text: false
+          },
+          options: {
+            wait_for_model: false // Forces HF to tell us immediately if it is sleeping
+          }
+        }),
+      });
+
+      clearTimeout(timeoutId); // Clear timer if it succeeds quickly
+
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        // Catch the 503 "Model is loading" state
+        if (result.error && result.error.toLowerCase().includes('loading')) {
+          const wait = Math.round(result.estimated_time || 20);
+          return NextResponse.json({ 
+            response: `*System Note: The SecuWear AI is currently booting up from sleep mode on the server. Please wait about ${wait} seconds and try again.*` 
+          });
+        }
+        return NextResponse.json({ error: `API Error: ${result.error}` }, { status: response.status });
+      }
+
+      const cleanText = result[0]?.generated_text?.trim() || "No response generated.";
+      return NextResponse.json({ response: cleanText });
+
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      
+      // If our 8-second timer triggers, it throws an AbortError. We catch it here gracefully.
+      if (fetchError.name === 'AbortError') {
+        return NextResponse.json({ 
+          response: "*System Note: The SecuWear emergency database is warming up. This takes about 20 seconds. Please wait a moment and try sending your message again.*" 
+        });
+      }
+      throw fetchError; 
     }
 
-    return new Response(response.body, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive"
-      }
-    });
-
   } catch (error: any) {
-    console.error("API Error:", error);
-    return NextResponse.json({ error: error.message || "Unknown server execution failure" }, { status: 500 });
+    return NextResponse.json({ error: `Backend crash: ${error.message}` }, { status: 500 });
   }
 }
