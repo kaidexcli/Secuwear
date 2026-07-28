@@ -14,14 +14,7 @@ interface Message {
 }
 
 const AuxilinkLogo = ({ size = 42, className = "" }: { size?: number, className?: string }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    xmlns="http://www.w3.org/2000/svg" 
-    className={className}
-  >
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     <path d="M6 10L12 3L18 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     <circle cx="12" cy="15" r="4" stroke="currentColor" strokeWidth="2"/>
     <path d="M12 10V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -64,12 +57,14 @@ export default function SurvivalAIPage() {
 
       const data = await res.json()
 
-      if (data.error) throw new Error(data.error)
+      if (data.error) {
+        throw new Error(data.error)
+      }
 
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.response || "No response received from Auxilink agent."
+        content: data.response || "No response received."
       }])
     } catch (error: any) {
       setMessages(prev => [
@@ -77,7 +72,7 @@ export default function SurvivalAIPage() {
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `Connection error: ${error.message || "Unable to reach the server."}`
+          content: `Connection error: ${error.message || "Failed to reach backend."}`
         }
       ])
     } finally {
@@ -93,8 +88,7 @@ export default function SurvivalAIPage() {
   }
 
   const renderMessageContent = (text: string) => {
-    // Regex matches common PH hotline formats (911, 09xxxxxxxxx, 8-digit landlines)
-    const phoneRegex = /(\b9-1-1\b|\b911\b|\b\d{3,4}[-\s]?\d{3,4}[-\s]?\d{3,4}\b|\(02\)\s?\d{4}[-\s]?\d{4}|\b09\d{9}\b)/g
+    const phoneRegex = /(\b9-1-1\b|\b911\b|\b\d{3,4}[-\s]?\d{3,4}[-\s]?\d{3,4}\b|\(02\)\s?\d{4}[-\s]?\d{4}|\b09\d{9}\b|\b143\b|\b1555\b|\b117\b)/g
     const matches = text.match(phoneRegex)
 
     return (
@@ -163,7 +157,7 @@ export default function SurvivalAIPage() {
                   </h1>
                 </div>
                 <p className="text-[#7D7B74] text-sm font-medium max-w-md mt-2">
-                  Fine-tuned on Philippine emergency response directories, disaster survival frameworks, and life-safety protocols.
+                  Powered by Mistral-7B. Integrated with Philippine emergency response frameworks and life-safety protocols.
                 </p>
               </motion.div>
             </div>
@@ -222,7 +216,7 @@ export default function SurvivalAIPage() {
           )}
         </div>
 
-        <div className="absolute bottom-6 w-full max-w-3xl px-4 bg-gradient-to-t from-[#FAF9F6] via-[#FAF9F6] to-transparent pt-6">
+        <div className="absolute bottom-6 w-full max-w-3xl px-4 bg-linear-to-t from-[#FAF9F6] via-[#FAF9F6] to-transparent pt-6">
           <div className="bg-white border border-[#E5E3D9] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-3 flex flex-col transition-shadow focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
             
             <textarea
@@ -242,7 +236,7 @@ export default function SurvivalAIPage() {
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 text-xs text-orange-700 font-semibold px-2.5 py-1.5 bg-orange-50 border border-orange-200/60 rounded-lg cursor-pointer transition-colors mr-2">
                   <Sparkles size={14} className="text-orange-600" />
-                  llemon-2.7-7b <ChevronDown size={14} />
+                  Mistral-7B-Instruct <ChevronDown size={14} />
                 </div>
                 
                 <button className="p-2 text-[#A09E96] hover:bg-[#F2F0E9] rounded-xl transition-colors">
