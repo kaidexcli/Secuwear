@@ -59,13 +59,9 @@ export default function SurvivalAIPage() {
       })
 
       if (!res.ok) {
+        // Updated to catch the specific error structure from your new backend
         const errorData = await res.json().catch(() => ({ error: "Unknown server error" }));
-        
-        if (res.status === 503 && errorData.error?.includes('loading')) {
-           throw new Error(`Model is waking up. Estimated time: ${errorData.estimated_time || 20}s. Please try again shortly.`);
-        }
-        // Catch 500s directly so they don't just say "internal error"
-        throw new Error(errorData.error || errorData.message || "Server returned an internal error.");
+        throw new Error(errorData.details || errorData.error || "Server returned an internal error.");
       }
 
       if (!res.body) throw new Error("No response body received.")
@@ -82,7 +78,9 @@ export default function SurvivalAIPage() {
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
         
+        // Keep the last potentially incomplete line in the buffer
         buffer = lines.pop() || ""
+        let chunkHasContent = false;
 
         for (const line of lines) {
           const trimmedLine = line.trim()
@@ -94,19 +92,23 @@ export default function SurvivalAIPage() {
           try {
             const parsed = JSON.parse(data)
             
-            // New parsing logic for standard /v1/chat/completions format
+            // Standard OpenAI/HF Router parsing format
             const textDelta = parsed.choices?.[0]?.delta?.content
             if (textDelta) {
                assistantContent += textDelta
+               chunkHasContent = true;
             }
           } catch (e) {
             console.warn("Could not parse stream chunk:", data)
           }
         }
         
-        setMessages(prev => prev.map(msg => 
-          msg.id === assistantId ? { ...msg, content: assistantContent } : msg
-        ))
+        // Update state once per read chunk to improve rendering performance
+        if (chunkHasContent) {
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantId ? { ...msg, content: assistantContent } : msg
+          ))
+        }
       }
     } catch (error: any) {
       setMessages(prev => [
@@ -199,7 +201,7 @@ export default function SurvivalAIPage() {
                   </h1>
                 </div>
                 <p className="text-[#7D7B74] text-sm font-medium max-w-md mt-2">
-                  Powered by DeepSeek-R1. Integrated with Philippine emergency response frameworks and life-safety protocols.
+                  Powered by Kimi-K3. Integrated with Philippine emergency response frameworks and life-safety protocols.
                 </p>
               </motion.div>
             </div>
@@ -278,7 +280,7 @@ export default function SurvivalAIPage() {
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 text-xs text-orange-700 font-semibold px-2.5 py-1.5 bg-orange-50 border border-orange-200/60 rounded-lg cursor-pointer transition-colors mr-2">
                   <Sparkles size={14} className="text-orange-600" />
-                  DeepSeek-R1 <ChevronDown size={14} />
+                  Kimi-K3 <ChevronDown size={14} />
                 </div>
                 
                 <button className="p-2 text-[#A09E96] hover:bg-[#F2F0E9] rounded-xl transition-colors">
