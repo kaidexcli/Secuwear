@@ -1,62 +1,40 @@
-import { HfInference } from '@huggingface/inference';
-import { NextResponse } from 'next/server';
-
 export async function POST(req: Request) {
   try {
     const { message } = await req.json();
 
-    if (!message) {
-      return NextResponse.json({ error: 'Message payload is required' }, { status: 400 });
-    }
-
-    const hfToken = process.env.HF_TOKEN?.trim();
-
-    if (!hfToken) {
-      return NextResponse.json({ error: "Configuration Error: HF_TOKEN is missing." }, { status: 500 });
-    }
-
-    const hf = new HfInference(hfToken);
-
-    const systemPrompt = `You are SecuWear Auxilink, an expert in Philippine disaster survival and emergency response. 
-    You have immediate access to these Philippine Emergency Hotlines:
-    - National Emergency: 911
-    - PNP: 117 / (02) 8722-0650
-    - BFP: (02) 8426-0219
-    - NDRRMC: (02) 8911-5061
-    - Red Cross: 143
-    - DOH: 1555
-    Always prioritize safety, give concise instructions, and provide these specific hotline numbers when a user is in distress.`;
-
-    // Zephyr-specific prompt formatting to bypass the broken chat endpoint
-    const formattedPrompt = `<|system|>\n${systemPrompt}</s>\n<|user|>\n${message}</s>\n<|assistant|>\n`;
-
-    // CRITICAL: Using textGeneration with Zephyr bypasses the broken third-party HTTP providers
-    const response = await hf.textGeneration({
-      model: 'moonshotai/Kimi-K3',
-      inputs: formattedPrompt,
-      parameters: {
-        max_new_tokens: 300,
-        temperature: 0.3,
-        return_full_text: false
-      }
+    const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.HF_TOKEN}`
+      },
+      body: JSON.stringify({
+        model: "moonshotai/Kimi-K3", 
+        messages: [{ role: "user", content: message }],
+        max_tokens: 4096,
+        temperature: 0.6,     
+        stream: true           
+      }),
     });
 
-    // Clean the output
-    const rawText = response.generated_text || "";
-    const cleanText = rawText.replace(formattedPrompt, "").trim();
-    
-    return NextResponse.json({ response: cleanText || "No response generated." });
-
-  } catch (error: any) {
-    console.error("SDK API Error:", error);
-
-    const errMessage = error.message?.toLowerCase() || "";
-    if (errMessage.includes('loading') || errMessage.includes('timeout') || errMessage.includes('503')) {
-      return NextResponse.json({ 
-        response: "*System Note: The SecuWear AI is currently booting up from sleep mode on the server. Please wait about 15 seconds and try again.*" 
-      });
+    if (!response.ok) {
+       // Read the actual error from Hugging Face so we aren't guessing
+       const errorData = await response.text(); 
+       console.error("Hugging Face API Error:", response.status, errorData);
+       
+       return Response.json(
+         { error: "Failed to fetch from HF", details: errorData }, 
+         { status: response.status }
+       );
     }
 
-    return NextResponse.json({ error: `Backend SDK Error: ${error.message}` }, { status: 500 });
+    // Stream the raw bytes directly back to the frontend
+    return new Response(response.body, {
+      headers: { "Content-Type": "text/event-stream" }
+    });
+
+  } catch (error) {
+    console.error("Server Error:", error);
+    return Response.json({ error: "AI Server unreachable" }, { status: 500 });
   }
 }
