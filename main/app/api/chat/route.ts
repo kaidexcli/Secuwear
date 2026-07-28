@@ -17,5 +17,6 @@ export async function POST(req: Request) {
     ],
   });
 
-  return result.toDataStreamResponse();
+  // Changed to 
+  return result.toTextStreamResponse(); 
 }
