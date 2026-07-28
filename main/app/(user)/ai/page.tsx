@@ -61,6 +61,11 @@ export default function SurvivalAIPage() {
       // Check if the backend sent an error code
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ error: "Unknown server error" }));
+        
+        // Specifically handle the Hugging Face "Model is loading" 503 error
+        if (res.status === 503 && errorData.error?.includes('loading')) {
+           throw new Error(`Model is waking up. Estimated time: ${errorData.estimated_time || 20}s. Please try again shortly.`);
+        }
         throw new Error(errorData.error || "Server returned an error.");
       }
 
@@ -69,15 +74,38 @@ export default function SurvivalAIPage() {
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let assistantContent = ""
+      let buffer = "" // Buffer to handle network chunks splitting halfway through a JSON string
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
         
-        const chunk = decoder.decode(value, { stream: true })
-        // Clean potential data stream prefixes if any
-        assistantContent += chunk.replace(/^data:\s*/gm, '')
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
         
+        // Keep the last incomplete line in the buffer for the next pass
+        buffer = lines.pop() || ""
+
+        for (const line of lines) {
+          const trimmedLine = line.trim()
+          if (!trimmedLine || !trimmedLine.startsWith('data:')) continue
+          
+          const data = trimmedLine.slice(5).trim()
+          if (data === '[DONE]') continue
+          
+          try {
+            const parsed = JSON.parse(data)
+            
+            // Hugging Face sends text inside parsed.token.text. We ignore special tokens like </s>
+            if (parsed.token?.text && !parsed.token.special) {
+               assistantContent += parsed.token.text
+            }
+          } catch (e) {
+            console.warn("Could not parse stream chunk:", data)
+          }
+        }
+        
+        // Update state outside the inner loop to batch renders
         setMessages(prev => prev.map(msg => 
           msg.id === assistantId ? { ...msg, content: assistantContent } : msg
         ))
