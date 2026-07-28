@@ -12,15 +12,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "HF_TOKEN missing in server configuration" }, { status: 500 });
     }
 
-    // Using the Hugging Face standard Messages API for DeepSeek
-    const response = await fetch("https://api-inference.huggingface.co/models/deepseek-ai/DeepSeek-R1-Distill-Llama-8B/v1/chat/completions", {
+    // Switched to Llama-3-8B-Instruct - extremely stable on HF's free tier
+    const MODEL_ID = "deepseek-ai/Deepseek-R1";
+
+    const response = await fetch(`https://api-inference.huggingface.co/models/${MODEL_ID}/v1/chat/completions`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${hfToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+        model: MODEL_ID,
         messages: [
           {
             role: "system",
@@ -31,7 +33,7 @@ export async function POST(req: Request) {
             content: message
           }
         ],
-        max_tokens: 800,
+        max_tokens: 512, // Lowered slightly to ensure HF free tier accepts it
         temperature: 0.3,
         stream: true, 
       }),
