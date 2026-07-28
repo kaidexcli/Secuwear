@@ -25,7 +25,7 @@ export async function POST(req: Request) {
       ],
       // CRITICAL CONFIGURATION ADDED
       temperature: 0.3,
-      maxTokens: 500,
+      maxOutputTokens: 500,
       // Some providers require these to stabilize the inference session
       topP: 0.95,
       frequencyPenalty: 0.5,
