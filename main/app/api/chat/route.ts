@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server';
 
-// Ensure Next.js doesn't try to statically cache this streaming route
+// 1. CRITICAL FOR VERCEL: Switch to Edge runtime to prevent the 10-second timeout kill switch
+export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
     const { message } = await req.json();
-    const hfToken = process.env.HF_TOKEN;
+    
+    // 2. Clean the token to strip any accidental spaces or newlines from Vercel settings
+    const hfToken = (process.env.HF_TOKEN || '').trim();
 
     if (!hfToken) {
-      return NextResponse.json({ error: "HF_TOKEN missing" }, { status: 500 });
+      return NextResponse.json({ error: "HF_TOKEN missing in server configuration" }, { status: 500 });
     }
 
     const response = await fetch("https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta", {
@@ -28,11 +31,12 @@ export async function POST(req: Request) {
         },
         stream: true, 
       }),
+      // Prevents aggressive caching in Next.js which can sometimes trigger fetch failures
+      cache: 'no-store' 
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      // Safely attempt to parse HF errors (like the 503 Loading error) to pass back to the frontend
       try {
         const parsedError = JSON.parse(errorText);
         return NextResponse.json(parsedError, { status: response.status });
@@ -50,7 +54,13 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    console.error("Critical Backend Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Critical Backend Error:", error.message);
+    
+    // Provide a more helpful error to the frontend if it still fails
+    const errorMessage = error.message === 'fetch failed' 
+      ? 'Connection dropped: The AI model is taking too long to wake up. Please try again in 30 seconds.' 
+      : error.message;
+
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
