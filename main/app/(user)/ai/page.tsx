@@ -58,9 +58,9 @@ export default function SurvivalAIPage() {
         body: JSON.stringify({ message: userMessage.content })
       })
 
-      // NEW: Check if the backend sent an error code
+      // Check if the backend sent an error code
       if (!res.ok) {
-        const errorData = await res.json();
+        const errorData = await res.json().catch(() => ({ error: "Unknown server error" }));
         throw new Error(errorData.error || "Server returned an error.");
       }
 
@@ -75,7 +75,8 @@ export default function SurvivalAIPage() {
         if (done) break
         
         const chunk = decoder.decode(value, { stream: true })
-        assistantContent += chunk
+        // Clean potential data stream prefixes if any
+        assistantContent += chunk.replace(/^data:\s*/gm, '')
         
         setMessages(prev => prev.map(msg => 
           msg.id === assistantId ? { ...msg, content: assistantContent } : msg
@@ -87,7 +88,6 @@ export default function SurvivalAIPage() {
         {
           id: assistantId,
           role: 'assistant',
-          // This will now show the actual error if the backend crashes
           content: `Backend Error: ${error.message || "Unknown error occurred."}`
         }
       ])
